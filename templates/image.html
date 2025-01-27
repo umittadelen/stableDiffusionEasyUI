@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <title>Image Preview</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles-new.css') }}">
+    <style>
+        .img-container {
+            width: 100%;
+            max-width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        img {
+            max-width: 100%;
+            object-fit: contain;
+            cursor: pointer;
+            border: var(--border);
+            border-radius: 10px;
+        }
+
+        #all {
+            margin: 1em auto 0 auto;
+        }
+
+        .form {
+            padding: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="all">
+        <div class="form">
+            <div class="img-container">
+                <a href="{{ url_for('serve_temp_image', filename=image) }}" download>
+                    <img src="{{ url_for('serve_temp_image', filename=image) }}" alt="{{ image }}">
+                </a>
+
+                
+            </div>
+            
+            <p>Click on the image to download</p>
+
+            <div class="btn-container">
+                <button class="metadata" href="javascript:void(0);" onclick="openMetadata()">Metadata</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openMetadata(){
+            window.location.href = "{{ url_for('metadata') }}";
+        }
+    </script>
+    <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
+</body>
+</html>
