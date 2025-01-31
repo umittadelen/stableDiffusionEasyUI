@@ -415,8 +415,8 @@ def generate():
     model_name = request.form.get('model', 'https://huggingface.co/cagliostrolab/animagine-xl-3.1/blob/main/animagine-xl-3.1.safetensors')
     model_type = request.form.get('model_type', 'SDXL')
     scheduler_name = request.form.get('scheduler', 'Euler a')
-    original_prompt = request.form.get('prompt', '1girl, cute, kawaii, full body')
-    prompt = utils.preprocess_prompt(request.form.get('prompt', '1girl, cute, kawaii, full body')) if int(request.form.get("prompt_helper", 0)) == 1 else request.form.get('prompt', '1girl, cute, kawaii, full body')
+    original_prompt = request.form.get('prompt', '1girl, cute, kawaii, full body').split("§")
+    prompts = utils.preprocess_prompt(request.form.get('prompt', '1girl, cute, kawaii, full body')) if int(request.form.get("prompt_helper", 0)) == 1 else request.form.get('prompt', '1girl, cute, kawaii, full body')
     negative_prompt = request.form.get('negative_prompt', 'default_negative_prompt')
     width = int(request.form.get('width', 832))
     height = int(request.form.get('height', 1216))
@@ -453,30 +453,31 @@ def generate():
             return
 
         try:
-            for i in range(image_count):
-                if gconfig["generation_stopped"]:
+            for prompt in prompts:
+                for i in range(image_count):
+                    if gconfig["generation_stopped"]:
+                        gconfig["progress"] = 0
+                        gconfig["status"] = "Generation Stopped"
+                        gconfig["generating"] = False
+                        gconfig["generation_stopped"] = False
+                        break
+
+                    #TODO: Update the progress message
+                    gconfig["remainingImages"] = image_count - i
+                    gconfig["status"] = f"Generating {gconfig["remainingImages"]} Images..."
                     gconfig["progress"] = 0
-                    gconfig["status"] = "Generation Stopped"
-                    gconfig["generating"] = False
-                    gconfig["generation_stopped"] = False
-                    break
 
-                #TODO: Update the progress message
-                gconfig["remainingImages"] = image_count - i
-                gconfig["status"] = f"Generating {gconfig["remainingImages"]} Images..."
-                gconfig["progress"] = 0
+                    #TODO: Generate a new seed for each image
+                    if gconfig["custom_seed"] == 0:
+                        seed = random.randint(0, 100000000000)
+                    else:
+                        seed = gconfig["custom_seed"]
 
-                #TODO: Generate a new seed for each image
-                if gconfig["custom_seed"] == 0:
-                    seed = random.randint(0, 100000000000)
-                else:
-                    seed = gconfig["custom_seed"]
+                    image_path = generateImage(pipe, model_name, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count)
 
-                image_path = generateImage(pipe, model_name, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count)
-
-                #TODO: Store the generated image path
-                if image_path:
-                    gconfig["image_cache"][seed] = [image_path]
+                    #TODO: Store the generated image path
+                    if image_path:
+                        gconfig["image_cache"][seed] = [image_path]
         except Exception:
             traceback_details = traceback.format_exc()
             gconfig["generating"] = False
@@ -733,6 +734,9 @@ def save_settings():
 
 @app.route('/load_settings', methods=['GET'])
 def load_settings():
+    if not isFile('./static/json/settings.json'):
+        with open('./static/json/settings.json', 'w', encoding='utf-8') as f:
+            json.dump({}, f, indent=4)
     with open('./static/json/settings.json', 'r', encoding='utf-8') as f:
         settings = json.load(f)
     gconfig.update(settings)
