@@ -1,83 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-32">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Metadata Extractor</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 
     <!-- Import Quicksand Font from Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;700&display=swap" rel="stylesheet">
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles-new.css') }}">
     <style>
-        /* Apply Quicksand font and dark mode styling */
-        body {
-            font-family: 'Quicksand', sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            top: 0px;
-            overflow-y: auto;
-        }
-
-        h2 {
-            text-align: center;
-            color: #ffffff;
-            margin-bottom: 20px;
-        }
-
-        input[type="file"] {
+        .img {
+            margin-left: auto;
+            margin-right: auto;
             display: block;
-            margin: 0 auto;
-            background-color: #1f1f1f;
-            color: #e0e0e0;
-            border: 1px solid #333;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: 'Quicksand', sans-serif;
-            font-size: 16px;
+            margin-bottom: 16px;
+            width: 100%;
         }
 
-        #metadataDisplay {
-            background-color: #1e1e1e;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 600px;
-            margin-top: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            text-align: left;
+        summary {
+            display: block;
         }
 
-        .metadata-item {
-            margin-bottom: 10px;
+        /* Create a new custom triangle on the right side */
+        summary::after {
+            margin-left: 1ch;
+            display: inline-block;
+            content: '➤';
+            vertical-align: middle;
+            transform: rotate(0deg); /* Initial state */
         }
 
-        .metadata-title {
-            font-weight: 700;
-            color: #e0e0e0;
-            font-size: 18px;
-            margin-bottom: 5px;
+        /* Define keyframes for the custom animation */
+        @keyframes rotateAnimation {
+            0% {
+                transform: rotate(0deg);
+            }
+            50% {
+                transform: rotate(120deg);
+            }
+            75% {
+                transform: rotate(90deg);
+            }
+            100% {
+                transform: rotate(90deg);
+            }
+        }
+        @keyframes reverseRotateAnimation {
+            0% {
+                transform: rotate(90deg);
+            }
+            50% {
+                transform: rotate(-30deg);
+            }
+            75% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(0deg);
+            }
         }
 
-        .metadata-value {
-            color: #c0c0c0;
-            padding-left: 10px;
-            font-size: 16px;
+        details[open] > summary::after {
+            animation: rotateAnimation 1s ease-in-out forwards; /* Play animation when open */
         }
+
+        details:not([open]) > summary::after {
+            animation: reverseRotateAnimation 1s ease-in-out forwards; /* Reverse animation when closed */
+        }
+
+        /* Define reverse animation keyframes */
+        
     </style>
 </head>
 <body>
 
-    <div>
-        <h2>Upload an Image to Extract Metadata</h2>
-        <input type="file" id="imageInput" accept="image/png">
-        
-        <div id="metadataDisplay"></div>
+    <div id="all">
+        <h1>Upload an Image to Extract Metadata</h1>
+        <div class="form">
+            <input type="file" id="imageInput" accept="image/png">
+            <div id="metadataDisplay"></div>
+        </div>
     </div>
 
     <script>
@@ -96,23 +99,7 @@
                 // Parse PNG and look for tEXt chunks
                 const metadata = extractPngTextChunks(uint8Array);
                 if (metadata) {
-                    const extractedData = {
-                        Prompt: metadata.Prompt || "N/A",
-                        OriginalPrompt: metadata.OriginalPrompt || "N/A",
-                        NegativePrompt: metadata.NegativePrompt || "N/A",
-                        Width: metadata.Width || "N/A",
-                        Height: metadata.Height || "N/A",
-                        CFGScale: metadata.CFGScale || "N/A",
-                        ImgInput: metadata.ImgInput || "N/A",
-                        Strength: metadata.Strength || "N/A",
-                        Seed: metadata.Seed || "N/A",
-                        SamplingSteps: metadata.SamplingSteps || "N/A",
-                        Model: metadata.Model || "N/A",
-                        Scheduler: metadata.Scheduler || "N/A",
-                    };
-
-                    // Display metadata in a formatted way
-                    displayMetadata(extractedData);
+                    displayMetadata(metadata, file); // Pass file to displayMetadata
                 } else {
                     alert("No metadata found in this PNG image.");
                 }
@@ -137,12 +124,15 @@
                 const length = readUint32(uint8Array, position);
                 const chunkType = String.fromCharCode.apply(null, uint8Array.slice(position + 4, position + 8));
                 const chunkData = uint8Array.slice(position + 8, position + 8 + length);
-                const crc = readUint32(uint8Array, position + 8 + length);  // Not used here
 
                 if (chunkType === 'tEXt') {
                     const textData = new TextDecoder().decode(chunkData);
-                    const [key, value] = textData.split('\u0000');
-                    textChunks[key] = value;
+                    const splitIndex = textData.indexOf('\u0000');
+                    if (splitIndex !== -1) {
+                        const key = textData.slice(0, splitIndex);
+                        const value = textData.slice(splitIndex + 1);
+                        textChunks[key] = value;
+                    }
                 }
 
                 position += 12 + length;  // Move to the next chunk (length + type + data + crc)
@@ -152,31 +142,52 @@
         }
 
         function readUint32(buffer, offset) {
-            return (buffer[offset] << 24) | (buffer[offset + 1] << 16) | (buffer[offset + 2] << 8) | (buffer[offset + 3]);
+            return new DataView(buffer.buffer).getUint32(offset, false); // Big-endian format
         }
 
-        // Function to display metadata with titles and values
-        function displayMetadata(metadata) {
+        // Function to display metadata dynamically
+        function displayMetadata(metadata, file) {
             const metadataDisplay = document.getElementById('metadataDisplay');
             metadataDisplay.innerHTML = ''; // Clear previous metadata
 
-            Object.keys(metadata).forEach(key => {
+            // Display Image
+            const imageContainer = document.createElement('div');
+            const imgElement = document.createElement('img');
+            imgElement.classList.add('img');
+            imgElement.src = URL.createObjectURL(file);
+            metadataDisplay.appendChild(imgElement);
+
+            Object.entries(metadata).forEach(([key, value]) => {
                 const item = document.createElement('div');
-                item.classList.add('metadata-item');
+                item.classList.add('metadata-item', 'div-border');
 
-                const title = document.createElement('div');
-                title.classList.add('metadata-title');
-                title.textContent = key;
+                const details = document.createElement('details');
 
-                const value = document.createElement('div');
-                value.classList.add('metadata-value');
-                value.textContent = metadata[key];
+                const summary = document.createElement('summary');
+                summary.classList.add('metadata-title');
+                summary.textContent = key;
 
-                item.appendChild(title);
-                item.appendChild(value);
+                const valueElement = document.createElement('div');
+                valueElement.classList.add('metadata-value');
+
+                // Create and add the separator inside metadata-value
+                const separator = document.createElement('div');
+                separator.id = 'form-separator';
+
+                const valueText = document.createElement('textarea');
+                valueText.disabled = true;
+                valueText.value = value; // Use .value instead of .textContent
+
+                valueElement.appendChild(separator);
+                valueElement.appendChild(valueText);
+
+                details.appendChild(summary);
+                details.appendChild(valueElement);
+                item.appendChild(details);
                 metadataDisplay.appendChild(item);
             });
         }
+
     </script>
     <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
 </body>

@@ -33,7 +33,6 @@ from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor
 from compel import Compel, ReturnedEmbeddingsType
 from diffusers.utils import load_image
 from downloadModelFromCivitai import downloadModelFromCivitai
-from downloadModelFromHuggingFace import downloadModelFromHuggingFace
 
 app = Flask(__name__)
 log = logging.getLogger('werkzeug')
@@ -73,44 +72,6 @@ gconfig["HF_TOKEN"] = (open(f'C:/Users/{os.getlogin()}/.cache/huggingface/token'
     else json.load(open('./static/json/settings.json', 'r', encoding='utf-8'))["HF_TOKEN"]
     if isFile("./static/json/settings.json")
     else "")
-
-def checkModelsAvailability():
-    print("Checking Models Availability...")
-    try:
-        with open('./static/json/models.json', 'r', encoding='utf-8') as f:
-            models = json.load(f)
-    except:
-        print("Models file not found.")
-        return
-    
-    for model in models:
-        if "link" in models[model]:
-            
-            #! if path
-            if isDirectory(models[model]["link"]):
-                #TODO: if model exist but file not exist
-                try:
-                    if not os.path.exists(models[model]["link"]):
-                        models.remove(model)
-                except:
-                    pass
-
-            #! if civitai
-            elif "civitai" in models[model]["link"]:
-                #TODO: if model exist but file not exist
-                try:
-                    if not os.path.exists(models[model]["path"]):
-                        downloadModelFromCivitai(models[model]["link"])
-                except:
-                    pass
-
-            #! if huggingface
-            elif models[model]["path"].count('/') == 1:
-                #TODO: if model exist but file not exist
-                #? not supported yet
-                pass
-
-checkModelsAvailability()
 
 #TODO:  function to load the selected scheduler from name
 def load_scheduler(pipe, scheduler_name):
@@ -210,14 +171,13 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
         add_watermarker=False,
         use_auth_token=gconfig["HF_TOKEN"],
         safety_checker=None,
-        do_classifier_free_guidance=False,
         **kwargs
     )
 
     gconfig["status"] = "Loading New Pipeline... (loading VAE)"
     if gconfig["use_long_clip"]:
-        clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=torch.float16)
-        clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
+        clip_model = CLIPModel.from_pretrained("zer0int/LongCLIP-GmP-ViT-L-14", torch_dtype=torch.float16)
+        clip_processor = CLIPProcessor.from_pretrained("zer0int/LongCLIP-GmP-ViT-L-14")
     else:
         clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16", torch_dtype=torch.float16)
         clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
@@ -273,13 +233,13 @@ def latents_to_rgb(latents):
 
     return Image.fromarray(image_array)
 
-def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count):
+def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
     #TODO: Generate image with progress tracking
     current_time = time.time()
 
     def progress(pipe, step_index, timestep, callback_kwargs):
         gconfig["status"] = int(math.floor(step_index / samplingSteps * 100))
-        gconfig["progress"] = int(math.floor((image_count - gconfig["remainingImages"] + (step_index / samplingSteps)) / image_count * 100))
+        gconfig["progress"] = int(math.floor(((image_count - gconfig["remainingImages"]) + (step_index / samplingSteps)) / (image_count * prompt_count) * 100))
 
         if gconfig["show_latents"]:
             image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
@@ -291,6 +251,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
         if gconfig["generation_stopped"]:
             gconfig["status"] = "Generation Stopped"
             gconfig["progress"] = 0
+            gconfig["generating"] = False
             pipe._interrupt = True
 
         return callback_kwargs
@@ -398,6 +359,8 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
     except Exception:
         traceback_details = traceback.format_exc()
         gconfig["status"] = f"Generation Stopped with reason:<br>{traceback_details}"
+        gconfig["generation_stopped"] = True
+        gconfig["generating"] = False
         print(f"Generation Stopped with reason:\n{traceback_details}")
         return False
 
@@ -415,8 +378,8 @@ def generate():
     model_name = request.form.get('model', 'https://huggingface.co/cagliostrolab/animagine-xl-3.1/blob/main/animagine-xl-3.1.safetensors')
     model_type = request.form.get('model_type', 'SDXL')
     scheduler_name = request.form.get('scheduler', 'Euler a')
-    original_prompt = request.form.get('prompt', '1girl, cute, kawaii, full body').split("§")
-    prompts = utils.preprocess_prompt(request.form.get('prompt', '1girl, cute, kawaii, full body')) if int(request.form.get("prompt_helper", 0)) == 1 else request.form.get('prompt', '1girl, cute, kawaii, full body')
+    original_prompt = request.form.get('prompt', '1girl, cute, kawaii, full body')
+    prompts = utils.preprocess_prompt(original_prompt) if int(request.form.get("prompt_helper", 0)) == 1 else original_prompt
     negative_prompt = request.form.get('negative_prompt', 'default_negative_prompt')
     width = int(request.form.get('width', 832))
     height = int(request.form.get('height', 1216))
@@ -443,7 +406,8 @@ def generate():
     #TODO: Function to generate images
     def generate_images():
         try:
-            pipe = load_pipeline(model_name, model_type, generation_type, scheduler_name)
+            user_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__))+"/models", model_name.lstrip("./")).replace("\\", "/")
+            pipe = load_pipeline(user_model_path, model_type, generation_type, scheduler_name)
         except Exception:
             traceback_details = traceback.format_exc()
             gconfig["generating"] = False
@@ -453,18 +417,22 @@ def generate():
             return
 
         try:
-            for prompt in prompts:
+            if isinstance(prompts, str):
+                prompt_list = prompts.split("§")
+            else:
+                prompt_list = prompts
+            for prompt in prompt_list:
                 for i in range(image_count):
                     if gconfig["generation_stopped"]:
                         gconfig["progress"] = 0
                         gconfig["status"] = "Generation Stopped"
                         gconfig["generating"] = False
                         gconfig["generation_stopped"] = False
-                        break
+                        raise Exception("Generation Stopped")
 
                     #TODO: Update the progress message
-                    gconfig["remainingImages"] = image_count - i
-                    gconfig["status"] = f"Generating {gconfig["remainingImages"]} Images..."
+                    gconfig["remainingImages"] = (image_count * len(prompt_list)) - i
+                    gconfig["status"] = f"Generating {gconfig["remainingImages"] * len(prompt_list)} Images..."
                     gconfig["progress"] = 0
 
                     #TODO: Generate a new seed for each image
@@ -473,7 +441,7 @@ def generate():
                     else:
                         seed = gconfig["custom_seed"]
 
-                    image_path = generateImage(pipe, model_name, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count)
+                    image_path = generateImage(pipe, model_name, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
 
                     #TODO: Store the generated image path
                     if image_path:
@@ -481,6 +449,7 @@ def generate():
         except Exception:
             traceback_details = traceback.format_exc()
             gconfig["generating"] = False
+            gconfig["generation_stopped"] = False
             gconfig["status"] = f"Error Generating Images...<br>{traceback_details}"
             print(f"Error Generating Images...\n{traceback_details}")
             gconfig["progress"] = 0
@@ -491,10 +460,9 @@ def generate():
             gc.collect()
             torch.cuda.empty_cache()
             gconfig["status"] = "Generation Complete"
-
-        gconfig["progress"] = 0
-        gconfig["generating"] = False
-        gconfig["generation_stopped"] = False
+            gconfig["progress"] = 0
+            gconfig["generating"] = False
+            gconfig["generation_stopped"] = False
 
     #TODO: Start image generation in a separate thread to avoid blocking
     threading.Thread(target=generate_images).start()
@@ -522,7 +490,11 @@ def save_prompt():
 @app.route('/addmodel', methods=['POST'])
 def addmodel():
     #TODO: Download the model
-    model_url = request.form['model-name']
+    model_id = int(request.form['model_id']) if request.form['model_id'].isdigit() else 0
+    version_id = int(request.form['version_id']) if request.form['version_id'].isdigit() else 0
+
+    if model_id == 0 or version_id == 0:
+        return jsonify(status='Invalid Model ID or Version ID')
 
     gconfig["status"] = "Downloading Model..."
 
@@ -530,22 +502,14 @@ def addmodel():
         return jsonify(status='Image generation in progress. Please wait'), 400
 
     #! civitai.com
-    if "civitai" in model_url:
+    try:
         gconfig["downloading"] = True
-        downloadModelFromCivitai(model_url)
+        downloadModelFromCivitai(model_id, version_id)
         gconfig["downloading"] = False
-
         return jsonify(status='Model Downloaded')
-
-    #! handle huggingface "{}/{}" format
-    elif model_url.count('/') == 1:
-        gconfig["downloading"] = True
-        downloadModelFromHuggingFace(model_url)
+    except:
         gconfig["downloading"] = False
-
-        return jsonify(status='Model Downloaded')
-    else:
-        return jsonify(status='Invalid or Unsupported Model URL')
+        return jsonify(status='Error Downloading Model')
     
 @app.route('/changejson', methods=['POST'])
 def changejson():

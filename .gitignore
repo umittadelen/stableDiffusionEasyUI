@@ -8,3 +8,4 @@
 /static/json/saved_prompts.json
 /static/json/form_data.json
 /.VSCodeCounter
+/static/json/models.json

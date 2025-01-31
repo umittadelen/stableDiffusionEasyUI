@@ -132,15 +132,22 @@ function loadFormData() {
 }
 
 function populateModels(data, select) {
-    Object.entries(data).forEach(([modelName, modelData]) => {
+    data.forEach(item => {
+        const modelName = Object.keys(item)[0]; // Get the model name
+        const modelData = item[modelName]; // Extract the corresponding model data
+
+        if (!modelData) return; // Skip if modelData is undefined
+
         const option = document.createElement('option');
-        option.value = modelData.path;
+        option.value = item.files.path;
         option.dataset.cfg = modelData.cfg || 7;
         option.dataset.type = modelData.type || "SDXL";
-        option.textContent = modelName;
+        option.textContent = modelName; // Set the text to the model name
+
         if (modelData.disabled) {
             option.disabled = true;
         }
+
         select.appendChild(option);
     });
 }
@@ -178,11 +185,6 @@ loadJsonAndPopulateSelect('/static/json/dimensions.json', 'example_size', popula
 loadJsonAndPopulateSelect('/static/json/schedulers.json', 'scheduler', populateSchedulers);
 
 loadFormData();
-
-(async () => {
-    await getTokenCount('negative_prompt', 'negative-prompt-token-counter');
-    await getTokenCount('prompt', 'prompt-token-counter');
-})();
 
 function submitButtonOnClick(event) {
     event.preventDefault();
@@ -235,8 +237,8 @@ function saveFormData() {
     });
 }
 
-function resetCacheButtonOnClick(event) {
-    const isConfirmed = customConfirm.createConfirm('Are you sure you want to reset the form cache?<br>this cannot be undone!',
+async function resetCacheButtonOnClick(event) {
+    const isConfirmed = await customConfirm.createConfirm('Are you sure you want to reset the form cache?<br>this cannot be undone!',
         [
             { text: 'Reset', value: true },
             { text: 'Cancel', value: false }
@@ -245,9 +247,7 @@ function resetCacheButtonOnClick(event) {
     );
     
     if (isConfirmed) {
-        fetch('/reset_form_data', {
-            method: 'POST'
-        })
+        fetch('/reset_form_data')
         .then(response => response.json())
         .then(data => {
             console.log('Form cache has been reset:', data);
@@ -463,8 +463,8 @@ function stopButtonOnClick(event) {
     .catch(error => console.error('Error stopping generation:', error));
 };
 
-function restartButtonOnClick(event) {
-    const isConfirmed = customConfirm.createConfirm(
+async function restartButtonOnClick(event) {
+    const isConfirmed = await customConfirm.createConfirm(
         'Are you sure you want to restart the server?\nIt will reset all variables and has a chance to fail restarting.',
         [
             { text: 'Restart', value: true },
@@ -486,8 +486,8 @@ function restartButtonOnClick(event) {
     }
 };
 
-function clearButtonOnClick(event) {
-    const isConfirmed = customConfirm.createConfirm(
+async function clearButtonOnClick(event) {
+    const isConfirmed = await customConfirm.createConfirm(
         'Are you sure you want to clear all images?',
         [
             { text: 'Clear', value: true },

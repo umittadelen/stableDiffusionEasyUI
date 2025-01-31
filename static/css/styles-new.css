@@ -113,6 +113,18 @@ button {
     resize: vertical;
 }
 
+.div-border {
+    font-size: 1em;
+    font-family: var(--font-family);
+    padding: 0.8em;
+    margin-bottom: 1em;
+    color: var(--dark-text-color);
+    background-color: var(--primary-color);
+    border: var(--border);
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
 input::placeholder {
     font-weight: normal;
     color: var(--progress-bar-color);
@@ -271,6 +283,11 @@ button:hover > svg {
     width: 20vw;
     min-width: 20vw;
     max-width: 98vw;
+}
+
+.img {
+    border: var(--border);
+    border-radius: 10px;
 }
 
 @media (max-width: 768px) {

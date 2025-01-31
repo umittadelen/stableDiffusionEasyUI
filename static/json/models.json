@@ -1,9 +1,44 @@
-{
-    "shiitakeMix v10": {
-        "path": "C:/Users/umitt/Documents/GitHub/TextToImage/models/shiitakeMix_v10.safetensors",
-        "cfg": "5",
-        "disabled": false,
-        "type": "SDXL",
-        "link": "https://civitai.com/api/download/models/1196701?token=eec8a1d8773b26d45e846f09d06de2e1"
+[
+    {
+        "kiwimixXL v3": {
+            "path": "./kiwimixXL_v3.safetensors",
+            "cfg": 7,
+            "disabled": false,
+            "type": "Illustrious",
+            "link": "https://civitai.com/api/download/models/1075361"
+        },
+        "name": "kiwimixXL v3",
+        "files": {
+            "path": "./kiwimixXL_v3/kiwimixXL_v3.safetensors",
+            "name": "kiwimixXL_v3.safetensors",
+            "downloadUrl": "https://civitai.com/api/download/models/1075361"
+        },
+        "images": {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/084c2281-526e-4a59-a34e-1533144fb709/width=450/40812739.jpeg",
+            "width": 1024,
+            "height": 1536
+        },
+        "base_id": 264709
+    },
+    {
+        "shiitakeMix v10": {
+            "path": "./shiitakeMix_v10.safetensors",
+            "cfg": 7,
+            "disabled": false,
+            "type": "Illustrious",
+            "link": "https://civitai.com/api/download/models/1196701"
+        },
+        "name": "shiitakeMix v10",
+        "files": {
+            "path": "./shiitakeMix_v10/shiitakeMix_v10.safetensors",
+            "name": "shiitakeMix_v10.safetensors",
+            "downloadUrl": "https://civitai.com/api/download/models/1196701"
+        },
+        "images": {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/472c4966-7834-4e43-b2f4-c0ec93afcd55/width=450/47233695.jpeg",
+            "width": 1536,
+            "height": 2304
+        },
+        "base_id": 1066229
     }
-}
+]

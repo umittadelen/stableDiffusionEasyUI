@@ -2,9 +2,6 @@
 function submitModel(event) {
     event.preventDefault(); // Prevent default form submission
 
-    const modelName = document.getElementById('model-name').value;
-    alert(`Model submitted: ${modelName}`);
-
     // Use event.target to get the form element
     const formData = new FormData(event.target);
     fetch('/addmodel', {

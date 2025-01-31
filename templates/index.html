@@ -38,7 +38,6 @@
 
                     <label for="scheduler" title="Select the scheduler model to control the image generation process, affecting sampling techniques and quality.">Choose a scheduler model:</label>
                     <select id="scheduler" name="scheduler" required>
-                        <option value="Euler a" selected>Euler a</option>
                     </select><br>
 
                     <div id="form-separator"></div>
@@ -55,13 +54,13 @@
                     </select><br>
 
                     <div id="prompt-div" class="input-div">
-                        <label for="prompt" title="Enter the main prompt that describes the image you want to generate.">Prompt: (<span id="prompt-token-counter">2</span>)</label>
-                        <textarea id="prompt" name="prompt" required oninput="getTokenCount('prompt', 'prompt-token-counter')"></textarea><br>
+                        <label for="prompt" title="Enter the main prompt that describes the image you want to generate.">Prompt: (<span id="prompt-token-counter" onclick="getTokenCount('prompt', 'prompt-token-counter')">Click To Calculate</span>)</label>
+                        <textarea id="prompt" name="prompt" required></textarea><br>
                     </div>
 
                     <div id="negative-div">
-                        <label for="negative_prompt" title="Enter negative prompts to specify what you want to avoid in the generated image.">Negative Prompt: (<span id="negative-prompt-token-counter">2</span>)</label>
-                        <textarea id="negative_prompt" name="negative_prompt" oninput="getTokenCount('negative_prompt', 'negative-prompt-token-counter')">lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], extra ears, nsfw, explicit</textarea><br>
+                        <label for="negative_prompt" title="Enter negative prompts to specify what you want to avoid in the generated image.">Negative Prompt: (<span id="negative-prompt-token-counter" onclick="getTokenCount('negative_prompt', 'negative-prompt-token-counter')">Click To Calculate</span>)</label>
+                        <textarea id="negative_prompt" name="negative_prompt">lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], extra ears, nsfw, explicit</textarea><br>
                     </div>
 
                     <div id="buttons">

@@ -6,22 +6,32 @@
     <title>Model Editor</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles-new.css') }}">
+    <style>
+        textarea {
+            font-weight: normal;
+        }
+    </style>
 </head>
 <body>
     <div id="all">
         <h1>Model Editor</h1>
 
-        <!-- Form Section -->
         <form id="model-form" class="form" onsubmit="submitModel(event)">
-            <label for="model-name">Model Name:</label>
-            <input type="text" id="model-name" name="model-name" placeholder="Enter model url" required>
+            <div id="modelId-div">
+                <label for="modelId">Model ID:</label>
+                <input type="text" id="modelId" name="model_id" placeholder="Model ID" required>
+            </div>
 
-            <button type="submit">Submit Model</button>
+            <div id="versionId-div">
+                <label for="modelId">Version ID:</label>
+                <input type="text" id="versionId" name="version_id" placeholder="Version ID" required>
+            </div>
+
+            <button type="submit">Download Model From Civitai</button>
         </form>
 
         <div id="form-separator"></div>
 
-        <!-- JSON Viewer/Editor Section -->
         <div class="form">
             <label for="json-editor">View and Edit JSON</label>
             <textarea id="json-editor" placeholder="JSON content will appear here" oninput="validateJson()" style="height: 20em;"></textarea>
