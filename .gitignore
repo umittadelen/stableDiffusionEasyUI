@@ -3,10 +3,10 @@
 /models
 /Civitai-api.key
 /civitaiModels
-/path/to/generated_images
 /static/json/settings.json
 /static/json/saved_prompts.json
 /static/json/form_data.json
 /.VSCodeCounter
-/static/json/models.json
 /easyUI-main.zip
+/static/json/models.json
+/static/json/-models.json
