@@ -52,6 +52,9 @@
 
 ### Generating Images
 
+0. **Download a Model**:
+    Click to `Model Editor` button and download model using the civitai model id and version id (you can get the ids from `AIR:   123456 @ 654321`)
+
 1. **Choose a Model**:
     Select a model from the dropdown list or add a new model URL.
 

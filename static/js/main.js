@@ -303,6 +303,11 @@ function updateImageScales() {
 }
 
 document.addEventListener('contextmenu', function (event) {
+    // Check if the target is an input or textarea, if so, return without preventing default
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+    }
+
     event.preventDefault();
     customConfirm.createConfirm('Quick Actions', [
         { text: 'Clear Images', value: () => clearButtonOnClick(event) },
