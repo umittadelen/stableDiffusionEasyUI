@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data) {
-                document.getElementById("hf-token").value = data.HF_TOKEN || "";
                 document.getElementById("theme").value = data.theme || "\"{\\\"tone_1\\\":\\\"240, 240, 240\\\",\\\"tone_2\\\":\\\"240, 218, 218\\\",\\\"tone_3\\\":\\\"240, 163, 163\\\"}\"";
                 document.getElementById("attention-slicing").value = data.enable_attention_slicing ? "True" : "False";
                 document.getElementById("xformers").value = data.enable_xformers_memory_efficient_attention ? "True" : "False";
@@ -32,7 +31,6 @@ function saveSettings(event) {
     event.preventDefault();
 
     const settings = {
-        "HF_TOKEN": document.getElementById("hf-token").value,
         "theme": JSON.parse(document.getElementById('theme').value),
         "enable_attention_slicing": document.getElementById("attention-slicing").value === "True",
         "enable_xformers_memory_efficient_attention": document.getElementById("xformers").value === "True",

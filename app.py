@@ -654,7 +654,6 @@ def save_form_data():
     form_data = request.get_json()
     with open('./static/json/form_data.json', 'w', encoding='utf-8') as f:
         json.dump(form_data, f, indent=4)
-    print(form_data)
     return jsonify(status='Form data saved')
 
 @app.route('/load_form_data', methods=['GET'])

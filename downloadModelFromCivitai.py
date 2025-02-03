@@ -49,6 +49,7 @@ def shortenModelData(modelData):
             },
             "base_id": int(modelData["base_id"]) if "base_id" in modelData else None
         }
+        print(tmp)
     except Exception as e:
         print(f"Error: {e}")
     return tmp
@@ -65,7 +66,7 @@ def downloadModel(modelData, token, folderPath=gconfig["defaultModelPath"]):
         os.makedirs(folderPath)
     if not os.path.exists(f"{folderPath}/{modelData['files']['name'].replace(".safetensors","")}"):
         if not os.path.exists(f"{folderPath}/{modelData['files']['name'].replace(".safetensors","")}/{modelData['files']['name']}"):
-            downloadWithTool(modelData["files"]["downloadUrl"]+f"?token={token}", folderPath, f"/{modelData['files']['name'].replace('.safetensors', '')}/")
+            downloadWithTool(modelData["files"]["downloadUrl"].split('?')[0]+f"?token={token}", folderPath, f"/{modelData['files']['name'].replace('.safetensors', '')}/")
         with open(f"{folderPath}/{modelData["files"]["path"]}.json", "w") as file:
             json.dump(modelData, file, indent=4)
     else:
@@ -93,6 +94,8 @@ def downloadModelFromCivitai(modelID, versionID):
             else askForAPIKey())
 
         model_data = getModeldata(modelID, versionID)
+        print(model_data)
+        print(model_data["files"][0]["downloadUrl"])
         print(f"{modelID}@{versionID}")
     
         # Ensure the model data was retrieved successfully
@@ -129,9 +132,9 @@ def downloadModelFromCivitai(modelID, versionID):
                 print("Model does not exist. Downloading...")
                 downloadModel(modelData, gconfig["CAI_TOKEN"])
                 data.append(modelData)  # Add the new model data to the list
-            
-            file.seek(0)
-            json.dump(data, file, indent=4)
-            file.truncate()
+
+            # Write the updated list to the file
+            with open("./static/json/models.json", "w") as file:
+                json.dump(data, file, indent=4)
     finally:
         gconfig["downloading"] = False
