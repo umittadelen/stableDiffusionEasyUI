@@ -11,7 +11,7 @@ def askForAPIKey():
     return key
 
 def getModeldata(model_id, version_id):
-    url = f"https://civitai.com/api/v1/models/{model_id}?token={gconfig["CAI_TOKEN"]}"
+    url = f"https://civitai.com/api/v1/models/{model_id}?token={gconfig['CAI_TOKEN']}"
 
     response = requests.get(url)
 
@@ -28,19 +28,14 @@ def getModeldata(model_id, version_id):
 def shortenModelData(modelData):
     try:
         tmp = {
-            modelData.get("files", [{}])[0].get("name", "").split(".")[0].replace("_", " ") or "unknown": {
-                "path": f"./{modelData.get('files', [{}])[0].get('name', '')}" or None,
-                "cfg": 7,
-                "disabled": False,
-                "type": modelData.get("baseModel", None),
-                "link": modelData.get("files", [{}])[0].get("downloadUrl", None),
-            },
+            "type": modelData.get("baseModel", None),
+            "disabled": False,
+            "cfg": 7,
             "name": modelData["files"][0]["name"].split(".")[0].replace("_", " ") if "files" in modelData else None,
             "files": {
-                "path": f"./{modelData["files"][0]["name"].split(".")[0]}/{modelData["files"][0]["name"]}" if "files" in modelData else None,
+                "path": f"./{modelData['files'][0]['name'].split('.')[0]}/{modelData['files'][0]['name'].replace(".yaml", ".safetensors")}" if "files" in modelData else None,
                 "name": modelData["files"][0]["name"] if "files" in modelData else None,
-                "downloadUrl": modelData["files"][0]["downloadUrl"] if "files" in modelData else None
-
+                "downloadUrl": modelData["files"][0]["downloadUrl"].split('?')[0] if "files" in modelData else None
             },
             "images": {
                 "url": modelData["images"][0]["url"] if "images" in modelData else None,
@@ -55,8 +50,10 @@ def shortenModelData(modelData):
     return tmp
 
 def checkForModelFiles(modelData, folderPath=gconfig["defaultModelPath"]):
-    print(f"Model: {folderPath}/{modelData['files']['name'].replace(".safetensors","")}/{modelData['files']['name']}")
-    if os.path.exists(f"{folderPath}/{modelData['files']['name'].replace(".safetensors","")}"):
+    model_name = modelData['files']['name']
+    model_folder = model_name.split('.')[0]
+    print(f"Model: {folderPath}/{model_folder}/{model_name}")
+    if os.path.exists(f"{folderPath}/{model_folder}"):
         return True
     else:
         return False
@@ -64,27 +61,30 @@ def checkForModelFiles(modelData, folderPath=gconfig["defaultModelPath"]):
 def downloadModel(modelData, token, folderPath=gconfig["defaultModelPath"]):
     if not os.path.exists(folderPath):
         os.makedirs(folderPath)
-    if not os.path.exists(f"{folderPath}/{modelData['files']['name'].replace(".safetensors","")}"):
-        if not os.path.exists(f"{folderPath}/{modelData['files']['name'].replace(".safetensors","")}/{modelData['files']['name']}"):
-            downloadWithTool(modelData["files"]["downloadUrl"].split('?')[0]+f"?token={token}", folderPath, f"/{modelData['files']['name'].replace('.safetensors', '')}/")
-        with open(f"{folderPath}/{modelData["files"]["path"]}.json", "w") as file:
+    model_name = modelData['files']['name']
+    model_folder = model_name.split('.')[0]
+    if not os.path.exists(f"{folderPath}/{model_folder}"):
+        if not os.path.exists(f"{folderPath}/{model_folder}/{model_name}"):
+            downloadWithTool(modelData["files"]["downloadUrl"].split('?')[0] + f"?token={token}", folderPath, f"/{model_folder}/")
+        with open(f"{folderPath}/{model_folder}/{model_name}.json", "w") as file:
             json.dump(modelData, file, indent=4)
     else:
         return
 
 def downloadWithTool(link, rootFolderPath=gconfig["defaultModelPath"], additionFolder=""):
+    print(f"Downloading {link}")
     import shutil, subprocess
     def is_command_available(cmd):
             return shutil.which(cmd) is not None
     if is_command_available("aria2c"):
         print("Using aria2c for download.")
-        subprocess.run(f"aria2c --console-log-level=error --summary-interval=10 -c -x 16 -k 1M -s 16 -d {rootFolderPath + additionFolder.replace("./","")} {link}", shell=True)
+        subprocess.run(f"aria2c --console-log-level=error --summary-interval=10 -c -x 16 -k 1M -s 16 -d {rootFolderPath + additionFolder.replace('./','')} {link}", shell=True)
     elif is_command_available("wget"):
         print("Using wget for download.")
-        subprocess.run(f"wget -q -c -P {rootFolderPath + additionFolder.replace("./","")} '{link}'", shell=True)
+        subprocess.run(f"wget -q -c -P {rootFolderPath + additionFolder.replace('./','')} '{link}'", shell=True)
     elif is_command_available("curl"):
         print("Using curl for download.")
-        subprocess.run(f"curl -L -o \"{rootFolderPath + additionFolder.replace("./","")}\" \"{link}\"", shell=True)
+        subprocess.run(f"curl -L -o \"{rootFolderPath + additionFolder.replace('./','')}\" \"{link}\"", shell=True)
 
 def downloadModelFromCivitai(modelID, versionID):
     gconfig["downloading"] = True

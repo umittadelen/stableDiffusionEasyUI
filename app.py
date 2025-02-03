@@ -63,6 +63,13 @@ gconfig = {
     "use_long_clip": True,
     "show_latents": True,
     "load_previous_data": True,
+    "SDXL":[
+        "SDXL",
+        "Illustrious"
+    ],
+    "SD 1.5":[
+        "SD 1.5"
+    ]
 }
 
 gconfig["HF_TOKEN"] = (open(f'C:/Users/{os.getlogin()}/.cache/huggingface/token', 'r').read().strip() 
@@ -99,13 +106,13 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
 
     kwargs = {}
 
-    if "controlnet" in generation_type and "SDXL" in model_type:
+    if "controlnet" in generation_type and model_type in gconfig["SDXL"]:
         controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torch.float16)
         kwargs["controlnet"] = controlnet
 
-    if "SD 1.5" in model_type and "txt2img" in generation_type:
+    if model_type in gconfig["SD 1.5"] and "txt2img" in generation_type:
         kwargs["custom_pipeline"] = "lpw_stable_diffusion"
-    elif "SDXL" in model_type and "txt2img" in generation_type:
+    elif model_type in gconfig["SDXL"] and "txt2img" in generation_type:
         kwargs["custom_pipeline"] = "lpw_stable_diffusion_xl"
         kwargs["clip_skip"] = 2
         tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
@@ -114,29 +121,29 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
     if "img2img" in generation_type:
         pipeline = (
             StableDiffusionXLImg2ImgPipeline.from_single_file
-            if "SDXL" in model_type and model_name.endswith((".ckpt", ".safetensors")) else
+            if model_type in gconfig["SDXL"] and model_name.endswith((".ckpt", ".safetensors")) else
 
             StableDiffusionXLImg2ImgPipeline.from_pretrained
-            if "SDXL" in model_type else
+            if model_type in gconfig["SDXL"] else
 
             StableDiffusionImg2ImgPipeline.from_single_file
-            if "SD 1.5" in model_type and model_name.endswith((".ckpt", ".safetensors")) else
+            if model_type in gconfig["SD 1.5"] and model_name.endswith((".ckpt", ".safetensors")) else
 
             StableDiffusionImg2ImgPipeline.from_pretrained
-            if "SD 1.5" in model_type else
+            if model_type in gconfig["SD 1.5"] else
 
             DiffusionPipeline.from_pretrained
         )
     elif "controlnet" in generation_type:
         pipeline = (
             StableDiffusionXLControlNetPipeline.from_single_file
-            if "SDXL" in model_type and model_name.endswith((".ckpt", ".safetensors")) else
+            if model_type in gconfig["SDXL"] and model_name.endswith((".ckpt", ".safetensors")) else
 
             StableDiffusionXLControlNetPipeline.from_pretrained
-            if "SDXL" in model_type else
+            if model_type in gconfig["SDXL"] else
 
             StableDiffusionControlNetPipeline.from_pretrained
-            if "SD 1.5" in model_type else
+            if model_type in gconfig["SD 1.5"] else
 
             DiffusionPipeline.from_pretrained
         )
@@ -145,16 +152,16 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
     else:
         pipeline = (
             StableDiffusionXLPipeline.from_single_file
-            if "SDXL" in model_type and model_name.endswith((".ckpt", ".safetensors")) else
+            if model_type in gconfig["SDXL"] and model_name.endswith((".ckpt", ".safetensors")) else
 
             StableDiffusionXLPipeline.from_pretrained
-            if "SDXL" in model_type else
+            if model_type in gconfig["SDXL"] else
 
             StableDiffusionPipeline.from_single_file
-            if "SD 1.5" in model_type and model_name.endswith((".ckpt", ".safetensors")) else
+            if model_type in gconfig["SD 1.5"] and model_name.endswith((".ckpt", ".safetensors")) else
 
             StableDiffusionPipeline.from_pretrained
-            if "SD 1.5" in model_type else
+            if model_type in gconfig["SD 1.5"] else
 
             DiffusionPipeline.from_pretrained
         )

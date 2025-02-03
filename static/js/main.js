@@ -133,18 +133,13 @@ function loadFormData() {
 
 function populateModels(data, select) {
     data.forEach(item => {
-        const modelName = Object.keys(item)[0]; // Get the model name
-        const modelData = item[modelName]; // Extract the corresponding model data
-
-        if (!modelData) return; // Skip if modelData is undefined
-
         const option = document.createElement('option');
         option.value = item.files.path;
-        option.dataset.cfg = modelData.cfg || 7;
-        option.dataset.type = modelData.type || "SDXL";
-        option.textContent = modelName; // Set the text to the model name
+        option.dataset.cfg = item.cfg || 7;
+        option.dataset.type = item.type || "SDXL";
+        option.textContent = item.name;
 
-        if (modelData.disabled) {
+        if (item.disabled) {
             option.disabled = true;
         }
 
