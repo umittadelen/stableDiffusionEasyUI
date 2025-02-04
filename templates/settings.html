@@ -58,6 +58,15 @@
                 <option value="False">False</option>
             </select>
 
+            <label for="use-multi-prompt">Use Multiple Prompt:</label>
+            <select id="use-multi-prompt" name="use-multi-prompt">
+                <option value="True">True</option>
+                <option value="False">False</option>
+            </select>
+
+            <label for="multi-prompt-separator">Multiple Prompt Seperator</label>
+            <input type="text" name="multi-prompt-separator" id="multi-prompt-separator">
+
             <button type="submit">Save Settings</button>
         </form>
         <script src="{{url_for('static', filename='js/loadJson.js')}}" defer></script>

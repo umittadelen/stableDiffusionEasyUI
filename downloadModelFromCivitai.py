@@ -72,6 +72,10 @@ def downloadModel(modelData, token, folderPath=gconfig["defaultModelPath"]):
         with open(f"{folderPath}/{model_folder}/{model_name}.json", "w") as file:
             json.dump(modelData, file, indent=4)
     else:
+        if not os.path.isfile(f"./{folderPath}/{model_folder}/{model_name}.json"):
+            print("creaing config file")
+            with open(f"{folderPath}/{model_folder}/{model_name}.json", "w") as file:
+                json.dump(modelData, file, indent=4)
         return
 
 def downloadWithTool(link, rootFolderPath=gconfig["defaultModelPath"], additionFolder=""):

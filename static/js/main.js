@@ -174,7 +174,16 @@ function populateSchedulers(data, select) {
     });
 }
 
-loadJsonAndPopulateSelect('/static/json/models.json', 'model', populateModels);
+fetch("/scan_model_configs")
+.then(response => response.json())
+.then(data => {
+    loadJsonAndPopulateSelect(data, 'model', populateModels);
+})
+.catch(error => {
+    loadJsonAndPopulateSelect('/static/json/models.json', 'model', populateModels);
+    console.error("Error:", error);
+})
+
 loadJsonAndPopulateSelect('/static/json/examplePrompts.json', 'example_prompt', populateExamplePrompts);
 loadJsonAndPopulateSelect('/static/json/dimensions.json', 'example_size', populateExampleSizes);
 loadJsonAndPopulateSelect('/static/json/schedulers.json', 'scheduler', populateSchedulers);

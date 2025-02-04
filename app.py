@@ -419,7 +419,8 @@ def generate():
     #TODO: Function to generate images
     def generate_images():
         try:
-            user_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__))+"/models", model_name.lstrip("./")).replace("\\", "/")
+            user_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_name.lstrip("./")).replace("\\", "/")
+            print(user_model_path)
             pipe = load_pipeline(user_model_path, model_type, generation_type, scheduler_name)
         except Exception:
             traceback_details = traceback.format_exc()
@@ -720,6 +721,29 @@ def load_settings():
 @app.route('/metadata')
 def metadata():
     return render_template('metadata.html')
+
+@app.route('/scan_model_configs')
+def scan_for_model_configs():
+    models_path = "./models/"
+    merged_config = []
+
+    if not os.path.exists(models_path):
+        return jsonify({"error": "Model directory not found"}), 404
+
+    for model_name in os.listdir(models_path):
+        model_dir = os.path.join(models_path, model_name)
+        if os.path.isdir(model_dir):
+            json_files = [f for f in os.listdir(model_dir) if f.endswith(".json")]
+            if json_files:
+                json_path = os.path.join(model_dir, json_files[0])  # Pick the first JSON file
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        config_data = json.load(f)
+                    merged_config.append(config_data)
+                except json.JSONDecodeError:
+                    return jsonify({"error": f"Invalid JSON in {json_path}"}), 400
+
+    return jsonify(merged_config)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)

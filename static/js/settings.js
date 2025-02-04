@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById("long-clip").value = data.use_long_clip ? "True" : "False";
                 document.getElementById("show-latents").value = data.show_latents ? "True" : "False";
                 document.getElementById("load-previous-data").value = data.load_previous_data ? "True" : "False";
+                document.getElementById("use-multi-prompt").value = data.use_multi_prompt ? "True" : "False";
+                document.getElementById("multi-prompt-separator").value = data.multi_prompt_separator || "§";
             }
         })
         .catch(error => console.error('Error loading settings:', error));
@@ -38,7 +40,9 @@ function saveSettings(event) {
         "enable_sequential_cpu_offload": document.getElementById("sequential-cpu").value === "True",
         "use_long_clip": document.getElementById("long-clip").value === "True",
         "show_latents": document.getElementById("show-latents").value === "True",
-        "load_previous_data": document.getElementById("load-previous-data").value === "True"
+        "load_previous_data": document.getElementById("load-previous-data").value === "True",
+        "use_multi_prompt": document.getElementById("use-multi-prompt").value === "True",
+        "multi_prompt_separator": document.getElementById("multi-prompt-separator").value === "§"
     };
 
     fetch('/save_settings', {
