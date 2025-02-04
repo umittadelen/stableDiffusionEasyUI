@@ -1,7 +1,7 @@
 import json, requests, os
 
 gconfig = {
-    "defaultModelPath": "./models"
+    "defaultModelPath": "./models/"
 }
 
 def askForAPIKey():
@@ -20,29 +20,31 @@ def getModeldata(model_id, version_id):
     if response.status_code == 200:
         model_data = response.json()
         modelVersion = next((m for m in model_data["modelVersions"] if m["id"] == version_id), model_data["modelVersions"][0])
-        modelVersion["base_id"] = model_id
+        modelVersion["model_id"] = model_id
         return modelVersion
     else:
         return False
 
 def shortenModelData(modelData):
     try:
+        model_filename = (next((v.get("name", "") for v in modelData.get("files", []) if str(modelData.get("id", "")) in v.get("downloadUrl", "") and v.get("type", "Model") == "Model"), "")
+                       if next((v.get("name", "") for v in modelData.get("files", []) if str(modelData.get("id", "")) in v.get("downloadUrl", "") and v.get("type", "Model") == "Model"), "") else "")
         tmp = {
-            "type": modelData.get("baseModel", None),
+            "type": modelData.get("baseModel", "SDXL"),
             "disabled": False,
             "cfg": 7,
-            "name": modelData["files"][0]["name"].split(".")[0].replace("_", " ") if "files" in modelData else None,
-            "files": {
-                "path": f"./{modelData['files'][0]['name'].split('.')[0]}/{modelData['files'][0]['name'].replace(".yaml", ".safetensors")}" if "files" in modelData else None,
-                "name": modelData["files"][0]["name"] if "files" in modelData else None,
-                "downloadUrl": modelData["files"][0]["downloadUrl"].split('?')[0] if "files" in modelData else None
-            },
+            "name": model_filename,
+            "path": f"{gconfig["defaultModelPath"]}{model_filename.split('.')[0]}/{model_filename}" if "files" in modelData else "",
             "images": {
-                "url": modelData["images"][0]["url"] if "images" in modelData else None,
-                "width": modelData["images"][0]["width"] if "images" in modelData else None,
-                "height": modelData["images"][0]["height"] if "images" in modelData else None
+                "url": modelData["images"][0]["url"] if "images" in modelData else "",
+                "width": modelData["images"][0]["width"] if "images" in modelData else "",
+                "height": modelData["images"][0]["height"] if "images" in modelData else ""
             },
-            "base_id": int(modelData["base_id"]) if "base_id" in modelData else None
+            "trained_words": modelData.get("trainedWords", [""])[0] if modelData.get("trainedWords") else "",
+            "nsfw": modelData.get("model", {}).get("nsfw", False),
+            "model_id": modelData.get("model_id", ""),
+            "model_version_id": modelData.get("id", ""),
+            "download_url": modelData.get("downloadUrl", "")
         }
         print(tmp)
     except Exception as e:
@@ -61,11 +63,12 @@ def checkForModelFiles(modelData, folderPath=gconfig["defaultModelPath"]):
 def downloadModel(modelData, token, folderPath=gconfig["defaultModelPath"]):
     if not os.path.exists(folderPath):
         os.makedirs(folderPath)
-    model_name = modelData['files']['name']
+    model_name = modelData['name']
     model_folder = model_name.split('.')[0]
     if not os.path.exists(f"{folderPath}/{model_folder}"):
         if not os.path.exists(f"{folderPath}/{model_folder}/{model_name}"):
-            downloadWithTool(modelData["files"]["downloadUrl"].split('?')[0] + f"?token={token}", folderPath, f"/{model_folder}/")
+            print("Starting to download...")
+            downloadWithTool(modelData["download_url"].split('?')[0] + f"?token={token}", folderPath, f"/{model_folder}/")
         with open(f"{folderPath}/{model_folder}/{model_name}.json", "w") as file:
             json.dump(modelData, file, indent=4)
     else:
@@ -94,10 +97,8 @@ def downloadModelFromCivitai(modelID, versionID):
             else askForAPIKey())
 
         model_data = getModeldata(modelID, versionID)
-        print(model_data)
-        print(model_data["files"][0]["downloadUrl"])
         print(f"{modelID}@{versionID}")
-    
+
         # Ensure the model data was retrieved successfully
         if not model_data:
             print("Failed to retrieve model data.")
@@ -138,3 +139,6 @@ def downloadModelFromCivitai(modelID, versionID):
                 json.dump(data, file, indent=4)
     finally:
         gconfig["downloading"] = False
+
+if __name__ == "__main__":
+    downloadModelFromCivitai("34469", "480978")

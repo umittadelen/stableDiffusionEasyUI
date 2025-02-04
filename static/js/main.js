@@ -134,10 +134,10 @@ function loadFormData() {
 function populateModels(data, select) {
     data.forEach(item => {
         const option = document.createElement('option');
-        option.value = item.files.path;
+        option.value = item.path;
         option.dataset.cfg = item.cfg || 7;
         option.dataset.type = item.type || "SDXL";
-        option.textContent = item.name;
+        option.textContent = item.name.split(".")[0];
 
         if (item.disabled) {
             option.disabled = true;

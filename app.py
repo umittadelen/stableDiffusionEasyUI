@@ -63,9 +63,13 @@ gconfig = {
     "use_long_clip": True,
     "show_latents": True,
     "load_previous_data": True,
+    "use_multi_prompt": True,
+    "multi_prompt_separator": "§",
+
     "SDXL":[
         "SDXL",
-        "Illustrious"
+        "Illustrious",
+        "Pony"
     ],
     "SD 1.5":[
         "SD 1.5"
@@ -244,6 +248,9 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
     #TODO: Generate image with progress tracking
     current_time = time.time()
 
+    if not isDirectory(gconfig["generated_dir"]):
+        os.makedirs(gconfig["generated_dir"])
+
     def progress(pipe, step_index, timestep, callback_kwargs):
         gconfig["status"] = int(math.floor(step_index / samplingSteps * 100))
         gconfig["progress"] = int(math.floor(((image_count - gconfig["remainingImages"]) + (step_index / samplingSteps)) / (image_count * prompt_count) * 100))
@@ -259,7 +266,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
             gconfig["status"] = "Generation Stopped"
             gconfig["progress"] = 0
             gconfig["generating"] = False
-            pipe._interrupt = True
+            raise Exception("Generation Stopped")
 
         return callback_kwargs
 
@@ -385,8 +392,7 @@ def generate():
     model_name = request.form.get('model', 'https://huggingface.co/cagliostrolab/animagine-xl-3.1/blob/main/animagine-xl-3.1.safetensors')
     model_type = request.form.get('model_type', 'SDXL')
     scheduler_name = request.form.get('scheduler', 'Euler a')
-    original_prompt = request.form.get('prompt', '1girl, cute, kawaii, full body')
-    prompts = utils.preprocess_prompt(original_prompt) if int(request.form.get("prompt_helper", 0)) == 1 else original_prompt
+    prompts = request.form.get('prompt', '1girl, cute, kawaii, full body')
     negative_prompt = request.form.get('negative_prompt', 'default_negative_prompt')
     width = int(request.form.get('width', 832))
     height = int(request.form.get('height', 1216))
@@ -406,9 +412,9 @@ def generate():
     #save the temp image if provided and if not txt2img
     if img_input_img and generation_type != "txt2img":
         temp_image = Image.open(img_input_img).convert("RGB")
-        temp_image.save("./generated/temp_image.png")
+        temp_image.save(f"{gconfig["generated_dir"]}temp_image.png")
 
-    img_input = "./generated/temp_image.png" if img_input_img else img_input_link
+    img_input = f"{gconfig["generated_dir"]}temp_image.png" if img_input_img else img_input_link
 
     #TODO: Function to generate images
     def generate_images():
@@ -424,10 +430,9 @@ def generate():
             return
 
         try:
-            if isinstance(prompts, str):
-                prompt_list = prompts.split("§")
-            else:
-                prompt_list = prompts
+            if gconfig["use_multi_prompt"]:
+                prompt_list = [p.strip() for p in prompts.split(gconfig["multi_prompt_separator"])]
+
             for prompt in prompt_list:
                 for i in range(image_count):
                     if gconfig["generation_stopped"]:
@@ -448,7 +453,7 @@ def generate():
                     else:
                         seed = gconfig["custom_seed"]
 
-                    image_path = generateImage(pipe, model_name, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
+                    image_path = generateImage(pipe, model_name, prompt, prompts, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
 
                     #TODO: Store the generated image path
                     if image_path:
