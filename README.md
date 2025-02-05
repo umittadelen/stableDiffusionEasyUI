@@ -1,4 +1,5 @@
 # EasyUI
+### V1.1.0
 
 **TextToImage** is a free, open-source text-to-image generation tool designed for ease of use, allowing anyone to run advanced models on their computer with customizable parameters and progress tracking.
 
@@ -61,7 +62,7 @@
 2. **Set Parameters**:
     - **Model Type**: Choose the type of model (e.g., SDXL, SD1.5, FLUX).
     - **Scheduler**: Select the scheduler model.
-    - **Prompt**: Enter the main prompt that describes the image you want to generate.
+    - **Prompt**: Enter the main prompt that describes the image you want to generate. <br>(Multiple images can be generated using the multi prompt feature like `"prompt1§prompt2"  >  "prompt1","prompt2"`)
     - **Negative Prompt**: Enter negative prompts to specify what you want to avoid in the generated image.
     - **Width and Height**: Set the dimensions of the generated image.
     - **CFG Scale**: Adjust the scale value to control how closely the AI follows your prompts.
