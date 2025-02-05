@@ -1,7 +1,9 @@
 # EasyUI
-### V1.1.0
+### V1.1.0-0.01
 
 **TextToImage** is a free, open-source text-to-image generation tool designed for ease of use, allowing anyone to run advanced models on their computer with customizable parameters and progress tracking.
+
+> **NOTE:** The version available via `git clone` is more up-to-date than the releases because the repository contains the latest changes, which may not yet be included in the official release.
 
 ## Features
 
@@ -83,11 +85,7 @@
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE.txt](http://_vscodecontentref_/1) file for details.
-
----
-
-Thanks to [@John6666cat](https://github.com/John6666cat) for the models at [huggingface](https://huggingface.co/John6666) and helping me to fix issues.
+This project is licensed under the MIT License. See the [LICENSE.txt](https://github.com/umittadelen/easyUI/blob/main/LICENSE.txt) file for details.
 
 ---
 

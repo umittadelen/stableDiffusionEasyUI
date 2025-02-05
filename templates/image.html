@@ -15,6 +15,7 @@
 
         img {
             max-width: 100%;
+            max-height: 90vh;
             object-fit: contain;
             cursor: pointer;
             border: var(--border);
@@ -37,8 +38,6 @@
                 <a href="{{ url_for('serve_temp_image', filename=image) }}" download>
                     <img src="{{ url_for('serve_temp_image', filename=image) }}" alt="{{ image }}">
                 </a>
-
-                
             </div>
             
             <p>Click on the image to download</p>
@@ -50,7 +49,7 @@
     </div>
     <script>
         function openMetadata(){
-            window.location.href = "{{ url_for('metadata') }}";
+            window.location.href = `${window.location.protocol}//${window.location.host}{{ url_for('metadata') }}?url=${window.location.protocol}//${window.location.host}{{ url_for('serve_temp_image', filename=image) }}`;
         }
     </script>
     <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>

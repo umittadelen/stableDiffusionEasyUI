@@ -260,10 +260,6 @@ async function resetCacheButtonOnClick(event) {
         .catch(error => {
             console.error('Error resetting form cache:', error);
         });
-
-        location.reload();
-
-        console.log('Form cache has been reset.');
     }
 };
 

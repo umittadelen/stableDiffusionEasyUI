@@ -55,13 +55,13 @@ gconfig = {
     "image_cache": {},
     "downloading": False,
 
-    "theme": False,
+    "theme": {"tone_1": "240, 240, 240","tone_2": "240, 218, 218","tone_3": "240, 163, 163"},
     "enable_attention_slicing": True,
     "enable_xformers_memory_efficient_attention": False,
     "enable_model_cpu_offload": True,
     "enable_sequential_cpu_offload": False,
     "use_long_clip": True,
-    "show_latents": True,
+    "show_latents": False,
     "load_previous_data": True,
     "use_multi_prompt": True,
     "multi_prompt_separator": "§",
@@ -432,7 +432,11 @@ def generate():
 
         try:
             if gconfig["use_multi_prompt"]:
-                prompt_list = [p.strip() for p in prompts.split(gconfig["multi_prompt_separator"])]
+                if gconfig.get("multi_prompt_separator"):
+                    prompt_list = [p.strip() for p in prompts.split(gconfig["multi_prompt_separator"])]
+                else:
+                    # Handle the case when the separator is empty or missing
+                    prompt_list = [prompts.strip()]
 
             for prompt in prompt_list:
                 for i in range(image_count):

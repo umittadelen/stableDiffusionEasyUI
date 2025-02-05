@@ -15,7 +15,9 @@
             margin-right: auto;
             display: block;
             margin-bottom: 16px;
-            width: 100%;
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
         }
 
         summary {
@@ -68,15 +70,12 @@
         }
 
         details[open] > summary::after {
-            animation: rotateAnimation 1s ease-in-out forwards; /* Play animation when open */
+            animation: rotateAnimation 0.8s ease-in-out forwards; /* Play animation when open */
         }
 
         details:not([open]) > summary::after {
-            animation: reverseRotateAnimation 1s ease-in-out forwards; /* Reverse animation when closed */
+            animation: reverseRotateAnimation 0.8s ease-in-out forwards; /* Reverse animation when closed */
         }
-
-        /* Define reverse animation keyframes */
-        
     </style>
 </head>
 <body>
@@ -90,12 +89,25 @@
     </div>
 
     <script>
+        // Check if URL parameter is provided
+        const urlParams = new URLSearchParams(window.location.search);
+        const imageUrl = urlParams.get('url');
+
+        // Fetch metadata if URL parameter exists
+        if (imageUrl) {
+            fetchImageMetadata(imageUrl);
+        }
+
+        // Event listener for file input
         document.getElementById('imageInput').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (!file) {
                 alert("Please select a PNG image.");
                 return;
             }
+
+            // Clear URL parameter from the query string
+            window.history.replaceState(null, '', window.location.pathname); 
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -113,6 +125,31 @@
 
             reader.readAsArrayBuffer(file);
         });
+
+        // Function to fetch image metadata from URL
+        function fetchImageMetadata(url) {
+            fetch(url)
+                .then(response => response.blob())
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const arrayBuffer = e.target.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+
+                        // Parse PNG and look for tEXt chunks
+                        const metadata = extractPngTextChunks(uint8Array);
+                        if (metadata) {
+                            displayMetadata(metadata, blob); // Pass blob to displayMetadata
+                        } else {
+                            alert("No metadata found in this PNG image.");
+                        }
+                    };
+                    reader.readAsArrayBuffer(blob);
+                })
+                .catch(err => {
+                    alert("Failed to fetch image metadata: " + err.message);
+                });
+        }
 
         // Function to extract tEXt chunks from PNG data
         function extractPngTextChunks(uint8Array) {
@@ -158,10 +195,21 @@
 
             // Display Image
             const imageContainer = document.createElement('div');
+            imageContainer.classList.add('metadata-item', 'div-border');
+
+            const details = document.createElement('details');
+            const summary = document.createElement('summary');
+            summary.classList.add('metadata-title');
+
+            summary.textContent = "Expand to see image";
+
             const imgElement = document.createElement('img');
             imgElement.classList.add('img');
             imgElement.src = URL.createObjectURL(file);
-            metadataDisplay.appendChild(imgElement);
+            details.appendChild(summary);
+            details.appendChild(imgElement);
+            imageContainer.appendChild(details);
+            metadataDisplay.appendChild(imageContainer);
 
             Object.entries(metadata).forEach(([key, value]) => {
                 const item = document.createElement('div');
@@ -193,7 +241,6 @@
                 metadataDisplay.appendChild(item);
             });
         }
-
     </script>
     <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
 </body>
