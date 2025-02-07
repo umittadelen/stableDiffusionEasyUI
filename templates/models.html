@@ -38,8 +38,18 @@
             <button onclick="saveJson()">Save JSON</button>
             <p id="json-status"></p>
         </div>
+
+        <div id="form-separator"></div>
+
+        <div id="delete-model-form" class="form">
+            <label for="delete_model_id">Model Name To Delete:</label>
+            <input type="text" id="deleteModelId" name="delete_model_id" placeholder="Model Name" required>
+            <button onclick="deleteModel()">Delete Model</button>
+            <p id="delete-status"></p>
+        </div>
     </div>
 
+    <script src="{{url_for('static', filename='js/customConfirm.js')}}" defer></script>
     <script src="{{url_for('static', filename='js/models.js')}}" defer></script>
     <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
 </body>

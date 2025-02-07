@@ -527,21 +527,6 @@ def addmodel():
     except:
         gconfig["downloading"] = False
         return jsonify(status='Error Downloading Model')
-    
-@app.route('/changejson', methods=['POST'])
-def changejson():
-    try:
-        json_data = request.get_json()  # Parse JSON data from the request
-        
-        import json
-        # Save the JSON data to the file
-        with open('./static/json/models.json', 'w', encoding='utf-8') as json_file:
-            json.dump(json_data, json_file, indent=4, ensure_ascii=False)  # Ensure proper encoding
-
-        return jsonify({"message": "JSON saved successfully!"}), 200
-    except Exception:
-        traceback_details = traceback.format_exc()
-        return jsonify({"error": str(traceback_details)}), 400
 
 @app.route('/serve_canny', methods=['POST'])
 def serve_canny():
@@ -726,13 +711,13 @@ def load_settings():
 def metadata():
     return render_template('metadata.html')
 
-@app.route('/scan_model_configs')
-def scan_for_model_configs():
+def get_model_configs():
+    """Scans the models directory and returns a list of model configurations."""
     models_path = "./models/"
     merged_config = []
 
     if not os.path.exists(models_path):
-        return jsonify({"error": "Model directory not found"}), 404
+        return {"error": "Model directory not found"}
 
     for model_name in os.listdir(models_path):
         model_dir = os.path.join(models_path, model_name)
@@ -745,9 +730,61 @@ def scan_for_model_configs():
                         config_data = json.load(f)
                     merged_config.append(config_data)
                 except json.JSONDecodeError:
-                    return jsonify({"error": f"Invalid JSON in {json_path}"}), 400
+                    return {"error": f"Invalid JSON in {json_path}"}
 
-    return jsonify(merged_config)
+    return merged_config  # Returns a list of JSON data
+
+@app.route('/scan_model_configs')
+def scan_for_model_configs():
+    """Flask route to get model configurations as a JSON response."""
+    result = get_model_configs()
+
+    if "error" in result:
+        return jsonify(result), 404 if result["error"] == "Model directory not found" else 400
+
+    return jsonify(result)
+
+@app.route('/save_model_configs', methods=['POST'])
+def save_model_configs():
+    json_data = request.get_json()
+    import json
+    for item in json_data:
+        model_config_path = item["path"]+".1.json"
+        with open(model_config_path, "w", encoding="utf-8") as f:
+            json.dump(item, f, indent=4)
+    return jsonify({"message": "JSON saved successfully!"}), 200
+
+@app.route('/delete_model', methods=['POST'])
+def delete_model():
+    model_name = request.form['model_name']
+    if not model_name.endswith(".safetensors"):
+        model_name += ".safetensors"
+
+    models_data = get_model_configs()
+    for item in models_data:
+        if item["name"] == model_name:
+            model_path = os.path.dirname(item["path"])
+            try:
+                for root, dirs, files in os.walk(model_path, topdown=False):
+                    for name in files:
+                        os.remove(os.path.join(root, name))
+                    for name in dirs:
+                        try:
+                            os.rmdir(os.path.join(root, name))
+                        except OSError as e:
+                            print(f"Error removing directory {name}: {e}")
+
+                try:
+                    os.rmdir(model_path)
+                except OSError as e:
+                    print(f"Error removing top-level directory {model_path}: {e}")
+                    return jsonify({"error": "Directory not empty or permissions issue."}), 500
+
+                return jsonify({"message": "Model deleted successfully!"}), 200
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": "Model not found"}), 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)

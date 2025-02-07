@@ -1,3 +1,5 @@
+const customConfirm = new CustomConfirm();
+
 // Function to handle form submission
 function submitModel(event) {
     event.preventDefault(); // Prevent default form submission
@@ -17,10 +19,9 @@ function submitModel(event) {
     });
 }
 
-
 // Load JSON file into the editor
 function loadJson() {
-    fetch('/static/json/models.json')
+    fetch('/scan_model_configs')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Error loading JSON file');
@@ -40,12 +41,12 @@ function loadJson() {
 function saveJson() {
     const jsonContent = document.getElementById('json-editor').value;
 
-    fetch('/changejson', {
+    fetch('/save_model_configs', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: jsonContent // Send raw JSON string
+        body: jsonContent
     })
     .then((response) => {
         if (!response.ok) {
@@ -63,7 +64,6 @@ function saveJson() {
     });
 }
 
-
 // Validate JSON input
 function validateJson() {
     const jsonContent = document.getElementById('json-editor').value;
@@ -72,6 +72,43 @@ function validateJson() {
         document.getElementById('json-status').innerHTML = 'Valid JSON';
     } catch {
         document.getElementById('json-status').innerHTML = 'Invalid JSON';
+    }
+}
+
+// Delete Model
+async function deleteModel() {
+    const isConfirmed = await customConfirm.createConfirm(
+        'Are you sure you want to delete the model?',
+        [
+            { text: 'Delete', value: true },
+            { text: 'Cancel', value: false }
+        ],
+        false
+    );
+
+    if (isConfirmed) {
+        const modelName = document.getElementById('deleteModelId').value;
+        fetch('/delete_model', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `model_name=${modelName}`
+        })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error('Failed to delete model');
+            }
+            return response.json();
+        })
+        .then((data) => {
+            console.log('Success:', data);
+            document.getElementById('delete-status').innerHTML = 'Model deleted successfully!';
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            document.getElementById('delete-status').innerHTML = `Error deleting model: ${error.message}`;
+        });
     }
 }
 
