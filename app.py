@@ -68,7 +68,7 @@ gconfig = {
 
     "SDXL":[
         "SDXL",
-        "SDXL Lightning"
+        "SDXL Lightning",
         "Illustrious",
         "Pony"
     ],

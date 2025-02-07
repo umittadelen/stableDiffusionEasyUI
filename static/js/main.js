@@ -200,18 +200,24 @@ function updateImageScales() {
 }
 
 document.addEventListener('contextmenu', function (event) {
-    // Check if the target is an input or textarea, if so, return without preventing default
-    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+    console.log('Context menu event fired:', event);
+
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
+        console.log('Context menu allowed for input/textarea');
         return;
     }
 
     event.preventDefault();
+    console.log('Context menu prevented');
+
+    console.log('Creating custom confirm');
     customConfirm.createConfirm('Quick Actions', [
         { text: 'Clear Images', value: () => clearButtonOnClick(event) },
         { text: 'Stop Generation', value: () => stopButtonOnClick(event) },
         { text: 'Get Metadata', value: () => window.open(`metadata`) }
     ], true);
 });
+
 
 function updateProgressBars(data) {
     const progressText = document.getElementById('progress');
