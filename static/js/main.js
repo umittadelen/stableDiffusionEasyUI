@@ -33,6 +33,7 @@ function populateModels(data, select) {
         option.value = item.path;
         option.dataset.cfg = item.cfg || 7;
         option.dataset.type = item.type || "SDXL";
+        option.dataset.src = item.images.url;
         option.textContent = item.name.split(".")[0];
 
         if (item.disabled) {
@@ -429,6 +430,36 @@ document.getElementById("prompt").addEventListener("contextmenu", async function
     event.preventDefault();
     await resetValueOnRightClick(event);
 });
+
+const select = document.getElementById("model");
+const preview = document.getElementById("model-preview");
+
+const showPreview = (event) => {
+    const imageUrl = select.options[select.selectedIndex].dataset.src;
+    if (imageUrl) {
+        preview.src = imageUrl;
+        preview.style.display = "block";
+        preview.style.position = "absolute";
+        updatePosition(event);
+    }
+};
+
+const updatePosition = (event) => {
+    const { pageX: x, pageY: y } = event.touches ? event.touches[0] : event;
+    preview.style.left = `${x + 10}px`;
+    preview.style.top = `${y + 10}px`;
+};
+
+const hidePreview = () => preview.style.display = "none";
+
+// For both mouse and touch events
+select.addEventListener("mouseover", showPreview);
+select.addEventListener("mousemove", updatePosition);
+select.addEventListener("mouseleave", hidePreview);
+select.addEventListener("touchstart", showPreview);
+select.addEventListener("touchmove", updatePosition);
+select.addEventListener("touchend", hidePreview);
+
 
 //TODO handle prompt example change
 
