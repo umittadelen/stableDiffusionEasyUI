@@ -2,7 +2,6 @@
 from auto_installer import install_requirements
 install_requirements()
 
-import utils
 from flask import Flask, render_template, request, send_file, jsonify
 import torch, random, os, math, time, threading, sys, subprocess, glob, gc, logging, cv2, json
 from PIL import PngImagePlugin, Image
@@ -42,6 +41,8 @@ def isDirectory(a):
     return os.path.isdir(a)
 def isFile(a):
     return os.path.isfile(a)
+def resize_image(image, width, height):
+    return image.resize((width, height), resample=Image.BICUBIC)
 
 gconfig = {
     "generation_stopped":False,
@@ -287,7 +288,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                 try:
                     image = load_image(img_input).convert("RGB")
                     if image_size == "resize":
-                        image = utils.resize_image(image, width, height)
+                        image = resize_image(image, width, height)
 
                 except Exception:
                     #TODO: If the image is not valid, return False
@@ -313,7 +314,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                 # Load and preprocess the image for img2img
                 image = load_image(img_input).convert("RGB")
                 if image_size == "resize":
-                    image = utils.resize_image(image, width, height)
+                    image = resize_image(image, width, height)
 
                 #! Pass the image to pipeline - (kwargs for img2img)
                 kwargs["image"] = image
