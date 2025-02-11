@@ -51,7 +51,7 @@ gconfig = {
     "status": "",
     "progress": 0,
     "image_count": 0,
-    "custom_seed": 0,
+    "custom_seed": -1,
     "remainingImages": 0,
     "image_cache": {},
     "downloading": False,
@@ -85,6 +85,9 @@ gconfig["HF_TOKEN"] = (open(f'C:/Users/{os.getlogin()}/.cache/huggingface/token'
     else json.load(open('./static/json/settings.json', 'r', encoding='utf-8'))["HF_TOKEN"]
     if isFile("./static/json/settings.json")
     else "")
+
+if not isDirectory(gconfig["generated_dir"]):
+    os.mkdir(gconfig["generated_dir"])
 
 #TODO:  function to load the selected scheduler from name
 def load_scheduler(pipe, scheduler_name):
@@ -405,10 +408,10 @@ def generate():
     image_size = request.form.get('image_size', 'original')
     cfg_scale = float(request.form.get('cfg_scale', 7))
     image_count = int(request.form.get('image_count', 4))
-    custom_seed = int(request.form.get('custom_seed', 0))
+    custom_seed = int(request.form.get('custom_seed', -1))
     samplingSteps = int(request.form.get('sampling_steps', 28))
 
-    if custom_seed != 0:
+    if custom_seed != -1:
         image_count = 1
 
     #save the temp image if provided and if not txt2img
@@ -455,7 +458,7 @@ def generate():
                     gconfig["progress"] = 0
 
                     #TODO: Generate a new seed for each image
-                    if gconfig["custom_seed"] == 0:
+                    if gconfig["custom_seed"] == -1:
                         seed = random.randint(0, 100000000000)
                     else:
                         seed = gconfig["custom_seed"]

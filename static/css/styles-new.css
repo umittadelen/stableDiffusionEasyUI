@@ -391,3 +391,60 @@ button:hover > svg {
     color: var(--dark-text-color);
     border: 2px solid var(--highlight-color);
 }
+
+summary {
+    display: block;
+}
+
+/* Create a new custom triangle on the right side */
+summary::after {
+    margin-left: 1ch;
+    display: inline-block;
+    content: '➤';
+    vertical-align: middle;
+    transform: rotate(0deg); /* Initial state */
+}
+
+/* Define keyframes for the custom animation */
+@keyframes rotateAnimation {
+    0% {
+        transform: rotate(0deg);
+    }
+    50% {
+        transform: rotate(100deg);
+    }
+    60% {
+        transform: rotate(80deg);
+    }
+    75% {
+        transform: rotate(90deg);
+    }
+    100% {
+        transform: rotate(90deg);
+    }
+}
+@keyframes reverseRotateAnimation {
+    0% {
+        transform: rotate(90deg);
+    }
+    50% {
+        transform: rotate(-10deg);
+    }
+    60% {
+        transform: rotate(10deg);
+    }
+    75% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+details[open] > summary::after {
+    animation: rotateAnimation 0.8s ease-in-out forwards; /* Play animation when open */
+}
+
+details:not([open]) > summary::after {
+    animation: reverseRotateAnimation 0.8s ease-in-out forwards; /* Reverse animation when closed */
+}
