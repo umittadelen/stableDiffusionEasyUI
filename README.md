@@ -26,8 +26,8 @@
 
 1. **Clone the Repository**:
     ```bash
-    git clone https://github.com/umittadelen/TextToImage.git
-    cd TextToImage
+    git clone https://github.com/umittadelen/stableDiffusionEasyUI.git
+    cd stableDiffusionEasyUI
     ```
 
 2. **Change the IP**:
