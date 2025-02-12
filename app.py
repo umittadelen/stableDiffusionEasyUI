@@ -32,6 +32,7 @@ from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor
 from compel import Compel, ReturnedEmbeddingsType
 from diffusers.utils import load_image
 from downloadModelFromCivitai import downloadModelFromCivitai
+import base64
 
 app = Flask(__name__)
 log = logging.getLogger('werkzeug')
@@ -70,6 +71,7 @@ gconfig = {
     "SDXL":[
         "SDXL",
         "SDXL Lightning",
+        "SDXL Hyper",
         "Illustrious",
         "Pony"
     ],
@@ -77,6 +79,9 @@ gconfig = {
         "SD 1.5"
     ]
 }
+
+if isFile("./static/json/settings.json"):
+    gconfig.update(json.load(open('./static/json/settings.json', 'r', encoding='utf-8')))
 
 gconfig["HF_TOKEN"] = (open(f'C:/Users/{os.getlogin()}/.cache/huggingface/token', 'r').read().strip() 
     if os.path.exists(f'C:/Users/{os.getlogin()}/.cache/huggingface/token') 
@@ -249,6 +254,14 @@ def latents_to_rgb(latents):
 
     return Image.fromarray(image_array)
 
+def image_to_base64(img, temp_file=f"{gconfig["generated_dir"]}temp_base64_image.png"):
+    img = img.convert("RGB")
+    img.save(temp_file, format="PNG")
+    with open(temp_file, "rb") as f:
+        img_base64 = base64.b64encode(f.read()).decode()
+    os.remove(temp_file)
+    return "data:image/png;base64," + img_base64
+
 def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
     #TODO: Generate image with progress tracking
     current_time = time.time()
@@ -287,7 +300,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
         kwargs["num_images_per_prompt"] = 1
 
         if "controlnet" in generation_type:
-            if img_input != "":
+            if img_input:
                 try:
                     image = load_image(img_input).convert("RGB")
                     if image_size == "resize":
@@ -310,10 +323,8 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                 #! Pass the image to pipeline - (kwargs for controlnet)
                 kwargs["image"] = canny_image
                 kwargs["strength"] = strength
-            else:
-                return False
-        elif "img2img" in generation_type and "SDXL" not in model_type:
-            if img_input != "":
+        elif "img2img" in generation_type:
+            if img_input:
                 # Load and preprocess the image for img2img
                 image = load_image(img_input).convert("RGB")
                 if image_size == "resize":
@@ -322,8 +333,6 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                 #! Pass the image to pipeline - (kwargs for img2img)
                 kwargs["image"] = image
                 kwargs["strength"] = strength
-            else:
-                return False
         else:
             #! Pass the parameters to the pipeline - (kwargs for txt2img)
             kwargs["width"] = width
@@ -359,7 +368,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
         metadata.add_text("Width", str(width))
         metadata.add_text("Height", str(height))
         metadata.add_text("CFGScale", str(cfg_scale))
-        metadata.add_text("ImgInput", str(img_input) if "img2img" in model_type else "N/A")
+        metadata.add_text("ImgInput", str(image_to_base64(load_image(img_input).convert("RGB"))) if img_input else "N/A")
         metadata.add_text("Strength", str(strength) if "img2img" in model_type else "N/A")
         metadata.add_text("Seed", str(seed))
         metadata.add_text("SamplingSteps", str(samplingSteps))
@@ -425,7 +434,6 @@ def generate():
     def generate_images():
         try:
             user_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_name.lstrip("./")).replace("\\", "/")
-            print(user_model_path)
             pipe = load_pipeline(user_model_path, model_type, generation_type, scheduler_name)
         except Exception:
             traceback_details = traceback.format_exc()

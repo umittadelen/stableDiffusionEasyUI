@@ -394,6 +394,7 @@ button:hover > svg {
 
 summary {
     display: block;
+    font-weight: bold;
 }
 
 /* Create a new custom triangle on the right side */

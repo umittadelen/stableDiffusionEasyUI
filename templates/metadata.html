@@ -149,6 +149,9 @@
             const imgElement = document.createElement('img');
             imgElement.classList.add('img');
             imgElement.src = URL.createObjectURL(file);
+            imgElement.onclick = (event) => {
+                downloadImageWithoutMetadata(event.target.src);
+            };
             details.appendChild(summary);
             details.appendChild(imgElement);
             imageContainer.appendChild(details);
@@ -170,13 +173,26 @@
                 // Create and add the separator inside metadata-value
                 const separator = document.createElement('div');
                 separator.id = 'form-separator';
-
-                const valueText = document.createElement('textarea');
-                valueText.disabled = true;
-                valueText.value = value; // Use .value instead of .textContent
-
                 valueElement.appendChild(separator);
-                valueElement.appendChild(valueText);
+
+                if (value.startsWith("data:image")) {
+                    const base64imgElement = document.createElement('img');
+                    base64imgElement.classList.add('img');
+                    base64imgElement.src = value;
+                    base64imgElement.onclick = (event) => {
+                        downloadImageWithoutMetadata(event.target.src);
+                    };
+                    valueElement.appendChild(base64imgElement);
+                    const valueText = document.createElement('textarea');
+                    valueText.disabled = true;
+                    valueText.value = value;
+                    valueElement.appendChild(valueText);
+                } else {
+                    const valueText = document.createElement('textarea');
+                    valueText.disabled = true;
+                    valueText.value = value;
+                    valueElement.appendChild(valueText);
+                }
 
                 details.appendChild(summary);
                 details.appendChild(valueElement);
@@ -184,6 +200,34 @@
                 metadataDisplay.appendChild(item);
             });
         }
+
+        function downloadImageWithoutMetadata(imageSrc) {
+            const img = new Image();
+            img.src = imageSrc;
+
+            img.onload = () => {
+                // Create a canvas element
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Set canvas dimensions to match image size
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                // Draw the image onto the canvas
+                ctx.drawImage(img, 0, 0);
+
+                // Export the canvas to a data URL (image without metadata)
+                const imageDataWithoutMetadata = canvas.toDataURL('image/png');
+
+                // Create a download link and trigger download
+                const a = document.createElement('a');
+                a.href = imageDataWithoutMetadata;
+                a.download = 'image_without_metadata.png'; // specify the download file name
+                a.click();
+            };
+        }
+
     </script>
     <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
 </body>

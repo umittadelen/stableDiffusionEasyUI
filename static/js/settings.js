@@ -7,14 +7,15 @@ function populateThemes(data, select) {
         select.appendChild(option);
     });
 }
-loadJsonAndPopulateSelect('/static/json/themes.json', 'theme', populateThemes);
 
-document.addEventListener('DOMContentLoaded', function() {
-    fetch("/load_settings")
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadJsonAndPopulateSelect('/static/json/themes.json', 'theme', populateThemes);
+    await fetch("/load_settings")
         .then(response => response.json())
         .then(data => {
             if (data) {
-                document.getElementById("theme").value = data.theme || "\"{\\\"tone_1\\\":\\\"240, 240, 240\\\",\\\"tone_2\\\":\\\"240, 218, 218\\\",\\\"tone_3\\\":\\\"240, 163, 163\\\"}\"";
+                
+                document.getElementById("theme").value = JSON.stringify(data.theme) || '{"tone_1":"240, 240, 240","tone_2":"240, 218, 218","tone_3":"240, 163, 163"}';
                 document.getElementById("attention-slicing").value = data.enable_attention_slicing ? "True" : "False";
                 document.getElementById("xformers").value = data.enable_xformers_memory_efficient_attention ? "True" : "False";
                 document.getElementById("cpu-offload").value = data.enable_model_cpu_offload ? "True" : "False";
@@ -23,7 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById("show-latents").value = data.show_latents ? "True" : "False";
                 document.getElementById("load-previous-data").value = data.load_previous_data ? "True" : "False";
                 document.getElementById("use-multi-prompt").value = data.use_multi_prompt ? "True" : "False";
-                document.getElementById("multi-prompt-separator").textContent = data.multi_prompt_separator || "§";
+                console.log(data.multi_prompt_separator);
+                document.getElementById("multi-prompt-separator").value = data.multi_prompt_separator || "§";
             }
         })
         .catch(error => console.error('Error loading settings:', error));
@@ -32,18 +34,30 @@ document.addEventListener('DOMContentLoaded', function() {
 function saveSettings(event) {
     event.preventDefault();
 
-    const settings = {
-        "theme": JSON.parse(document.getElementById('theme').value),
-        "enable_attention_slicing": document.getElementById("attention-slicing").value === "True",
-        "enable_xformers_memory_efficient_attention": document.getElementById("xformers").value === "True",
-        "enable_model_cpu_offload": document.getElementById("cpu-offload").value === "True",
-        "enable_sequential_cpu_offload": document.getElementById("sequential-cpu").value === "True",
-        "use_long_clip": document.getElementById("long-clip").value === "True",
-        "show_latents": document.getElementById("show-latents").value === "True",
-        "load_previous_data": document.getElementById("load-previous-data").value === "True",
-        "use_multi_prompt": document.getElementById("use-multi-prompt").value === "True",
-        "multi_prompt_separator": document.getElementById("multi-prompt-separator").value.replace(/\\([nrt])/g, (_, c) => ({n: "\n", r: "\r", t: "\t"}[c]))
-    };
+    const settings = {};
+
+    // Handle theme separately
+    const themeValue = document.getElementById('theme').value;
+    if (themeValue) {
+        try {
+            const theme = JSON.parse(themeValue);
+            settings.theme = theme; // Store theme if valid
+        } catch (error) {
+            console.error('Error parsing theme:', error);
+        }
+    }
+    else
+
+    // Handle other settings
+    settings.enable_attention_slicing = document.getElementById("attention-slicing").value === "True";
+    settings.enable_xformers_memory_efficient_attention = document.getElementById("xformers").value === "True";
+    settings.enable_model_cpu_offload = document.getElementById("cpu-offload").value === "True";
+    settings.enable_sequential_cpu_offload = document.getElementById("sequential-cpu").value === "True";
+    settings.use_long_clip = document.getElementById("long-clip").value === "True";
+    settings.show_latents = document.getElementById("show-latents").value === "True";
+    settings.load_previous_data = document.getElementById("load-previous-data").value === "True";
+    settings.use_multi_prompt = document.getElementById("use-multi-prompt").value === "True";
+    settings.multi_prompt_separator = document.getElementById("multi-prompt-separator").value.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
 
     fetch('/save_settings', {
         method: 'POST',

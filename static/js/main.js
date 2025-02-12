@@ -138,15 +138,15 @@ function saveFormData() {
     });
 }
 
-async function resetCacheButtonOnClick(event) {
-    const isConfirmed = await customConfirm.createConfirm('Are you sure you want to reset the form cache?<br>this cannot be undone!',
+async function resetFormButtonOnClick(event) {
+    const isConfirmed = await customConfirm.createConfirm('Are you sure you want to reset the form?<br>this cannot be undone!',
         [
             { text: 'Reset', value: true },
             { text: 'Cancel', value: false }
         ],
         false
     );
-    
+
     if (isConfirmed) {
         fetch('/reset_form_data')
         .then(response => response.json())
@@ -200,22 +200,22 @@ function updateImageScales() {
 }
 
 document.addEventListener('contextmenu', function (event) {
-    console.log('Context menu event fired:', event);
 
     if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
         console.log('Context menu allowed for input/textarea');
         return;
     }
+    else {
+        event.preventDefault();
+        console.log('Context menu prevented');
 
-    event.preventDefault();
-    console.log('Context menu prevented');
-
-    console.log('Creating custom confirm');
-    customConfirm.createConfirm('Quick Actions', [
-        { text: 'Clear Images', value: () => clearButtonOnClick(event) },
-        { text: 'Stop Generation', value: () => stopButtonOnClick(event) },
-        { text: 'Get Metadata', value: () => window.open(`metadata`) }
-    ], true);
+        console.log('Creating custom confirm');
+        customConfirm.createConfirm('Quick Actions', [
+            { text: 'Clear Images', value: () => clearButtonOnClick(event) },
+            { text: 'Stop Generation', value: () => stopButtonOnClick(event) },
+            { text: 'Get Metadata', value: () => window.open(`metadata`) }
+        ], true);
+    }
 });
 
 
@@ -433,8 +433,10 @@ async function resetValueOnRightClick(event) {
 };
 
 document.getElementById("prompt").addEventListener("contextmenu", async function(event) {
-    event.preventDefault();
-    await resetValueOnRightClick(event);
+    if (event.ctrlKey) {
+        event.preventDefault();
+        await resetValueOnRightClick(event);
+    }
 });
 
 const select = document.getElementById("model");
