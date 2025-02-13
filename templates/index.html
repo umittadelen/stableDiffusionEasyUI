@@ -95,17 +95,19 @@
                             <select id="generation_type" name="generation_type">
                                 <option value="txt2img" selected>Text To Image</option>
                                 <option value="img2img">Image To Image</option>
-                                <option value="controlnet">ControlNet</option>
+                                <option value="controlnet canny">ControlNet Canny</option>
+                                <option value="controlnet depth">ControlNet Depth</option>
+                                <option value="controlnet openpose">ControlNet OpenPose</option>
                             </select><br>
 
-                            <label for="image_size" title="">Image Size: (ControlNet/IpAdapter/img2img)</label>
+                            <label for="image_size" title="">Image Size:</label>
                             <select id="image_size" name="image_size" required>
                                 <option value="original" selected>Original</option>
                                 <option value="resize">Resize</option>
                             </select><br>
 
                             <div id="img_input">
-                                <label for="img_input_link" title="Paste a valid image url to generate image from image">image: (ControlNet/img2img)</label>
+                                <label for="img_input_link" title="Paste a valid image url to generate image from image">image:</label>
                                 <input type="text" id="img_input" name="img_input_link" placeholder="https://example.com/image.png"><br>
                                 <input type="file" id="img_input" name="img_input_img" accept="image/*"><br>
                             </div>

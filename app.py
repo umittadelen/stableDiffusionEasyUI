@@ -28,7 +28,8 @@ from diffusers import (
     ControlNetModel,
     AutoencoderKL
 )
-from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor
+from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor, DPTFeatureExtractor, DPTForDepthEstimation
+from controlnet_aux import OpenposeDetector, HEDdetector
 from compel import Compel, ReturnedEmbeddingsType
 from diffusers.utils import load_image
 from downloadModelFromCivitai import downloadModelFromCivitai
@@ -40,8 +41,10 @@ log.setLevel(logging.ERROR)
 
 def isDirectory(a):
     return os.path.isdir(a)
+
 def isFile(a):
     return os.path.isfile(a)
+
 def resize_image(image, width, height):
     return image.resize((width, height), resample=Image.BICUBIC)
 
@@ -83,16 +86,60 @@ gconfig = {
 if isFile("./static/json/settings.json"):
     gconfig.update(json.load(open('./static/json/settings.json', 'r', encoding='utf-8')))
 
-gconfig["HF_TOKEN"] = (open(f'C:/Users/{os.getlogin()}/.cache/huggingface/token', 'r').read().strip() 
-    if os.path.exists(f'C:/Users/{os.getlogin()}/.cache/huggingface/token') 
-    else open(f'./civitai-api.key', 'r').read().strip() 
-    if os.path.exists(f'./civitai-api.key') and open(f'./civitai-api.key', 'r').read().strip() != "" 
-    else json.load(open('./static/json/settings.json', 'r', encoding='utf-8'))["HF_TOKEN"]
-    if isFile("./static/json/settings.json")
-    else "")
+gconfig["HF_TOKEN"] = (
+    open(f'C:/Users/{os.getlogin()}/.cache/huggingface/token', 'r').read().strip() 
+    if os.path.exists(f'C:/Users/{os.getlogin()}/.cache/huggingface/token') else
+    json.load(open('./static/json/settings.json', 'r', encoding='utf-8'))["HF_TOKEN"]
+    if isFile("./static/json/settings.json") else
+    ""
+)
+
+#login to huggingface_cli using the lib
+def login_to_huggingface():
+    from huggingface_hub import login
+    if gconfig["HF_TOKEN"]:
+        login(token=gconfig["HF_TOKEN"])
+    else:
+        login()
+
+login_to_huggingface()
 
 if not isDirectory(gconfig["generated_dir"]):
     os.mkdir(gconfig["generated_dir"])
+
+class controlNets:
+    def get_depth_map(image, width, height):
+        depth_estimator = DPTForDepthEstimation.from_pretrained("Intel/dpt-hybrid-midas").to("cuda")
+        feature_extractor = DPTFeatureExtractor.from_pretrained("Intel/dpt-hybrid-midas")
+        image = feature_extractor(images=image, return_tensors="pt").pixel_values.to("cuda")
+        with torch.no_grad(), torch.autocast("cuda"):
+            depth_map = depth_estimator(image).predicted_depth
+
+        depth_map = torch.nn.functional.interpolate(
+            depth_map.unsqueeze(1),
+            size=(height, width),
+            mode="bicubic",
+            align_corners=False,
+        )
+        depth_min = torch.amin(depth_map, dim=[1, 2, 3], keepdim=True)
+        depth_max = torch.amax(depth_map, dim=[1, 2, 3], keepdim=True)
+        depth_map = (depth_map - depth_min) / (depth_max - depth_min)
+        image = torch.cat([depth_map] * 3, dim=1)
+
+        image = image.permute(0, 2, 3, 1).cpu().numpy()[0]
+        image = Image.fromarray((image * 255.0).clip(0, 255).astype(np.uint8))
+        return image
+    def get_canny_image(image, width, height):
+        image = np.array(image)
+
+        canny_edges = cv2.Canny(image, 100, 200)
+        canny_edges = canny_edges[:, :, None]
+        canny_edges = np.concatenate([canny_edges, canny_edges, canny_edges], axis=2)
+        return Image.fromarray(canny_edges)
+    def get_openpose_image(image, width, height):
+        openpose = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+        openpose_image = openpose(image)
+        return openpose_image.resize((width, height), resample=Image.BICUBIC)
 
 #TODO:  function to load the selected scheduler from name
 def load_scheduler(pipe, scheduler_name):
@@ -120,8 +167,21 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
 
     kwargs = {}
 
-    if "controlnet" in generation_type and model_type in gconfig["SDXL"]:
-        controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torch.float16)
+    if "controlnet" in generation_type:
+        if "canny" in generation_type and model_type in gconfig["SDXL"]:
+            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torch.float16)
+        if "canny" in generation_type and model_type in gconfig["SD 1.5"]:
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", torch_dtype=torch.float16)
+
+        if "depth" in generation_type and model_type in gconfig["SDXL"]:
+            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-depth-sdxl-1.0", torch_dtype=torch.float16)
+        if "depth" in generation_type and model_type in gconfig["SD 1.5"]:
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", torch_dtype=torch.float16)
+
+        if "openpose" in generation_type and model_type in gconfig["SDXL"]:
+            controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
+        if "openpose" in generation_type and model_type in gconfig["SD 1.5"]:
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float16)
         kwargs["controlnet"] = controlnet
 
     if model_type in gconfig["SD 1.5"] and "txt2img" in generation_type:
@@ -155,6 +215,9 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
 
             StableDiffusionXLControlNetPipeline.from_pretrained
             if model_type in gconfig["SDXL"] else
+
+            StableDiffusionControlNetPipeline.from_single_file
+            if model_type in gconfig["SD 1.5"] and model_name.endswith((".ckpt", ".safetensors")) else
 
             StableDiffusionControlNetPipeline.from_pretrained
             if model_type in gconfig["SD 1.5"] else
@@ -312,17 +375,20 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                     traceback_details = traceback.format_exc()
                     print(f"Cannot acces to image:{traceback_details}")
                     return False
-                image = np.array(image)
-
-                # Apply Canny edge detection
-                canny_edges = cv2.Canny(image, 100, 200)
-                canny_edges = canny_edges[:, :, None]  # Add channel dimension
-                canny_edges = np.concatenate([canny_edges, canny_edges, canny_edges], axis=2)  # Convert to 3 channels
-                canny_image = Image.fromarray(canny_edges)
+                
+                if "canny" in generation_type:
+                    new_image = controlNets.get_canny_image(image, width, height)
+                if "depth" in generation_type:
+                    new_image = controlNets.get_depth_map(image, width, height)
+                if "openpose" in generation_type:
+                    new_image = controlNets.get_openpose_image(image, width, height)
 
                 #! Pass the image to pipeline - (kwargs for controlnet)
-                kwargs["image"] = canny_image
+                kwargs["image"] = new_image
                 kwargs["strength"] = strength
+            else:
+                gconfig["status"] = "Image Not Provided"
+                return False
         elif "img2img" in generation_type:
             if img_input:
                 # Load and preprocess the image for img2img
@@ -588,19 +654,7 @@ def status():
 
 @app.route('/generated/<filename>', methods=['GET'])
 def serve_temp_image(filename):
-    size = request.args.get('size')
     image_path = os.path.join(gconfig["generated_dir"], filename)
-    size_map = {'mini': 4, 'small': 3, 'medium': 2}
-
-    if size in size_map:
-        with Image.open(image_path) as img:
-            new_size = (img.width // size_map[size], img.height // size_map[size])
-            img = img.resize(new_size, Image.LANCZOS)
-            img_io = BytesIO()
-            img.save(img_io, format='PNG')
-            img_io.seek(0)
-            return send_file(img_io, mimetype='image/png')
-    
     return send_file(image_path, mimetype='image/png')
 
 @app.route('/image/<filename>', methods=['GET'])

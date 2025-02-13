@@ -8,23 +8,27 @@ function loadFormData() {
     fetch('/load_form_data')
     .then(response => response.json())
     .then(data => {
-        savedData = data;
         const form = document.getElementById('generateForm');
         for (const [key, value] of Object.entries(data)) {
             const field = form.elements[key];
+
             if (field && ['TEXTAREA', 'SELECT', 'INPUT'].includes(field.tagName)) {
-                if (field.tagName === 'SELECT') {
-                    // Set the selected option for <select>
+                if (field.type === 'file') {
+                    continue;
+                }
+                if (field.tagName === 'TEXTAREA') {
+                    field.textContent = value;
+                } else if (field.tagName === 'SELECT') {
                     Array.from(field.options).forEach(option => {
-                        option.selected = option.value === value;
+                        option.selected = option.value === String(value);
                     });
                 } else {
-                    // Set the value for <textarea> and <input>
                     field.value = value;
                 }
             }
         }
     })
+    .catch(error => console.error('Error loading form data:', error));
 }
 
 function populateModels(data, select) {
@@ -116,12 +120,21 @@ function submitButtonOnClick(event) {
 
 function saveFormData() {
     const formDataToSave = {};
-    const formElement = document.getElementById("generateForm"); // Explicitly get the form element
+    const formElement = document.getElementById("generateForm");
+
     Array.from(formElement.elements).forEach(field => {
         if (field.name && ['TEXTAREA', 'SELECT', 'INPUT'].includes(field.tagName)) {
-            formDataToSave[field.name] = field.value;
+            let value = field.value;
+
+            // Convert to number if it's a valid number
+            if (!isNaN(value) && value.trim() !== "") {
+                value = Number(value);
+            }
+
+            formDataToSave[field.name] = value;
         }
     });
+
     fetch('/save_form_data', {
         method: 'POST',
         headers: {
@@ -173,8 +186,6 @@ setInterval(() => {
 
                 processImageUpdates(data.images);
 
-                updateImageScales();
-
                 if (data.images.length < existingImages.size) {
                     existingImages.clear();
                     document.getElementById('images').innerHTML = '';
@@ -190,14 +201,6 @@ setInterval(() => {
             });
     }
 }, 2500);
-
-function updateImageScales() {
-    const images = document.querySelectorAll('#images img');
-    const value = Number(document.getElementById('img_display_input').value); // Convert value to a number
-    images.forEach(img => {
-        img.style.width = `${100 / value - 4}vw`;
-    });
-}
 
 document.addEventListener('contextmenu', function (event) {
 
@@ -217,7 +220,6 @@ document.addEventListener('contextmenu', function (event) {
         ], true);
     }
 });
-
 
 function updateProgressBars(data) {
     const progressText = document.getElementById('progress');
@@ -261,70 +263,34 @@ async function getTokenCount(inElementID, outElementId) {
     document.getElementById(outElementId).innerHTML = result['CLIP Token Count']
 }
 
-function getSizeSuffix() {
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    const sizeMap = {
-        'slow-2g': '?size=mini',
-        '2g': '?size=mini',
-        '3g': '?size=small',
-        '4g': '?size=medium'
-    };
-    const typesWithSuffix = ['cellular', 'wimax', 'bluetooth', 'other', 'unknown', 'none'];
-
-    if (connection) {
-        if (connection.type === 'cellular' && connection.effectiveType === '4g') {
-            return '?size=small';
-        }
-        if (typesWithSuffix.includes(connection.type)) {
-            return sizeMap[connection.effectiveType] || '';
-        }
-    }
-    return '';
-}
-
-function updateImageSizes() {
-    existingImages.forEach((wrapper) => {
-        const img = wrapper.querySelector('img');
-        const imgData = img.src.split('?')[0];
-        const sizeSuffix = getSizeSuffix();
-        img.src = `${imgData}${sizeSuffix}`;
-    });
-}
-
-if (navigator.connection || navigator.mozConnection || navigator.webkitConnection) {
-    (navigator.connection || navigator.mozConnection || navigator.webkitConnection).addEventListener('change', updateImageSizes);
-}
-
 function processImageUpdates(images) {
     const imagesDiv = document.getElementById('images');
 
     images.forEach((imgData, index) => {
         const key = imgData.seed;
-        const sizeSuffix = getSizeSuffix();
 
         if (existingImages.has(key)) {
             const existingImg = existingImages.get(key).querySelector('img');
-            if (existingImg.src !== imgData.img + sizeSuffix) {
-                existingImg.src = imgData.img + sizeSuffix;
+            if (existingImg.src !== imgData.img) {
+                existingImg.src = imgData.img;
             }
         } else {
             const wrapper = document.createElement('div');
             wrapper.className = 'image-wrapper';
 
             const img = document.createElement('img');
-            img.src = imgData.img + sizeSuffix;
+            img.src = imgData.img;
             img.loading = "lazy";
             img.onclick = () => openLink("image/" + imgData.img.split('/').pop());
 
             wrapper.appendChild(img);
             imagesDiv.appendChild(wrapper);
             existingImages.set(key, wrapper);
-            updateImageSizes();
         }
         if (index === images.length - 1) {
             const lastImg = existingImages.get(key)?.querySelector('img');
             if (lastImg) {
-                lastImg.src = `${imgData.img + sizeSuffix}?timestamp=${Date.now()}`; // Force refresh
+                lastImg.src = `${imgData.img}?timestamp=${Date.now()}`; // Force refresh
             }
         }
     });
