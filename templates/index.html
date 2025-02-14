@@ -11,7 +11,7 @@
 
     </head>
     <body>
-        <div id="status">
+        <div id="status" onclick="toggleStatus()">
             <p id="progress">Nothing Generating Yet</p>
             <div id="progress-bar-container">
                 <span class="progress-bar" id="dynamic-progress-bar"></span>
@@ -30,7 +30,7 @@
                     </select><br>
 
                     <div class="image-wrapper">
-                        <img id="model-preview" class="div-border" style="display: none; width: 22vw; padding: 0px;">
+                        <img id="model-preview" class="div-border" style="display: none; padding: 0px;">
                     </div>                    
 
                     <label for="model_type" title="The type of the model (change this if you know what are you doing or if the model is not working)">Choose a model type:</label>

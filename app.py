@@ -388,7 +388,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                 kwargs["strength"] = strength
             else:
                 gconfig["status"] = "Image Not Provided"
-                return False
+                raise Exception("Image Not Provided")
         elif "img2img" in generation_type:
             if img_input:
                 # Load and preprocess the image for img2img

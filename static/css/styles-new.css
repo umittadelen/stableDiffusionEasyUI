@@ -225,17 +225,33 @@ button:hover > svg {
     text-align: center;
     color: var(--dark-text-color);
     font-size: 1.2em;
-    position: -webkit-sticky; /* For Safari */
     position: sticky;
     top: 1em;
     z-index: 1000;
     width: 80%;
     background-color: var(--mid-color);
     border: var(--border);
+    transition: all 1s ease-in-out;
     border-radius: 10px;
     margin: 0 auto 0 auto;
     padding: 0 1em 1em 1em;
     box-sizing: border-box;
+}
+
+#status.minimized {
+    width: 5vmin;
+    height: 5vmin;
+    padding: 0;
+    transition: all 1s ease-in-out;
+    box-sizing: border-box;
+}
+
+#status.minimized * {
+    display: none;
+}
+
+#status:not(.minimized) * {
+    display: block;
 }
 
 /* Progress bar container */

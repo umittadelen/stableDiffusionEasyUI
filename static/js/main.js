@@ -223,7 +223,6 @@ document.addEventListener('contextmenu', function (event) {
 
 function updateProgressBars(data) {
     const progressText = document.getElementById('progress');
-    const statusDiv = document.getElementById('status');
     const dynamicProgressBar = document.getElementById('dynamic-progress-bar');
     const alldynamicProgressBar = document.getElementById('all-dynamic-progress-bar');
 
@@ -231,10 +230,6 @@ function updateProgressBars(data) {
     if (Number.isInteger(data.imgprogress)) {
         dynamicProgressBar.style.width = `calc(${data.imgprogress}%)`;
         progressText.innerHTML = `Progress: ${data.imgprogress}% Remaining: ${data.remainingimages}`;
-        statusDiv.style.display = 'block';
-    }
-    else if (data.imgprogress === '') {
-        statusDiv.style.display = 'none';
     }
     else {
         dynamicProgressBar.style.width = `0%`;
@@ -294,6 +289,11 @@ function processImageUpdates(images) {
             }
         }
     });
+}
+
+function toggleStatus() {
+    const statusBox = document.getElementById('status');
+    statusBox.classList.toggle('minimized');
 }
 
 function openLink(link) {
@@ -413,6 +413,10 @@ const showPreview = (event) => {
     if (imageUrl) {
         preview.src = imageUrl;
         preview.style.display = "block";
+        preview.style.height = "50vw";
+        preview.style.maxHeight = "70%";
+        preview.style.width = "auto";
+        preview.style.objectFit = "contain";
         preview.style.position = "absolute";
         updatePosition(event);
     }
@@ -420,9 +424,10 @@ const showPreview = (event) => {
 
 const updatePosition = (event) => {
     const { pageX: x, pageY: y } = event.touches ? event.touches[0] : event;
-    preview.style.left = `${x + 10}px`;
+    preview.style.left = `${x - preview.getBoundingClientRect().width / 2}px`;
     preview.style.top = `${y + 10}px`;
 };
+
 
 const hidePreview = () => preview.style.display = "none";
 
