@@ -28,8 +28,8 @@ from diffusers import (
     ControlNetModel,
     AutoencoderKL
 )
-from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor, DPTFeatureExtractor, DPTForDepthEstimation
-from controlnet_aux import OpenposeDetector, HEDdetector
+from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor
+from transformers import pipeline as ppln
 from compel import Compel, ReturnedEmbeddingsType
 from diffusers.utils import load_image
 from downloadModelFromCivitai import downloadModelFromCivitai
@@ -109,25 +109,14 @@ if not isDirectory(gconfig["generated_dir"]):
 
 class controlNets:
     def get_depth_map(image, width, height):
-        depth_estimator = DPTForDepthEstimation.from_pretrained("Intel/dpt-hybrid-midas").to("cuda")
-        feature_extractor = DPTFeatureExtractor.from_pretrained("Intel/dpt-hybrid-midas")
-        image = feature_extractor(images=image, return_tensors="pt").pixel_values.to("cuda")
-        with torch.no_grad(), torch.autocast("cuda"):
-            depth_map = depth_estimator(image).predicted_depth
+        depth_estimator = ppln('depth-estimation')
+        image = Image.fromarray(image)
+        image = depth_estimator(image, use_fast=True, device="cuda")['depth']
+        image = np.array(image)
+        image = image[:, :, None]
+        image = np.concatenate([image, image, image], axis=2)
+        image = Image.fromarray(image).resize((width, height), resample=Image.BICUBIC)
 
-        depth_map = torch.nn.functional.interpolate(
-            depth_map.unsqueeze(1),
-            size=(height, width),
-            mode="bicubic",
-            align_corners=False,
-        )
-        depth_min = torch.amin(depth_map, dim=[1, 2, 3], keepdim=True)
-        depth_max = torch.amax(depth_map, dim=[1, 2, 3], keepdim=True)
-        depth_map = (depth_map - depth_min) / (depth_max - depth_min)
-        image = torch.cat([depth_map] * 3, dim=1)
-
-        image = image.permute(0, 2, 3, 1).cpu().numpy()[0]
-        image = Image.fromarray((image * 255.0).clip(0, 255).astype(np.uint8))
         return image
     def get_canny_image(image, width, height):
         image = np.array(image)
@@ -135,11 +124,7 @@ class controlNets:
         canny_edges = cv2.Canny(image, 100, 200)
         canny_edges = canny_edges[:, :, None]
         canny_edges = np.concatenate([canny_edges, canny_edges, canny_edges], axis=2)
-        return Image.fromarray(canny_edges)
-    def get_openpose_image(image, width, height):
-        openpose = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
-        openpose_image = openpose(image)
-        return openpose_image.resize((width, height), resample=Image.BICUBIC)
+        return Image.fromarray(canny_edges).resize((width, height), resample=Image.BICUBIC)
 
 #TODO:  function to load the selected scheduler from name
 def load_scheduler(pipe, scheduler_name):
@@ -178,10 +163,6 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
         if "depth" in generation_type and model_type in gconfig["SD 1.5"]:
             controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", torch_dtype=torch.float16)
 
-        if "openpose" in generation_type and model_type in gconfig["SDXL"]:
-            controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
-        if "openpose" in generation_type and model_type in gconfig["SD 1.5"]:
-            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float16)
         kwargs["controlnet"] = controlnet
 
     if model_type in gconfig["SD 1.5"] and "txt2img" in generation_type:
@@ -325,7 +306,7 @@ def image_to_base64(img, temp_file=f"{gconfig["generated_dir"]}temp_base64_image
     os.remove(temp_file)
     return "data:image/png;base64," + img_base64
 
-def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
+def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
     #TODO: Generate image with progress tracking
     current_time = time.time()
 
@@ -375,13 +356,16 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                     traceback_details = traceback.format_exc()
                     print(f"Cannot acces to image:{traceback_details}")
                     return False
-                
-                if "canny" in generation_type:
-                    new_image = controlNets.get_canny_image(image, width, height)
-                if "depth" in generation_type:
-                    new_image = controlNets.get_depth_map(image, width, height)
-                if "openpose" in generation_type:
-                    new_image = controlNets.get_openpose_image(image, width, height)
+
+                if use_orig_img == "false":
+                    if "canny" in generation_type:
+                        new_image = controlNets.get_canny_image(image, width, height)
+                    if "depth" in generation_type:
+                        new_image = controlNets.get_depth_map(image, width, height)
+                    else:
+                        new_image = image
+                else:
+                    new_image = image
 
                 #! Pass the image to pipeline - (kwargs for controlnet)
                 kwargs["image"] = new_image
@@ -479,6 +463,7 @@ def generate():
     strength = float(request.form.get('strength', 0.5))
     img_input_link = request.form.get('img_input_link', "")
     img_input_img = request.files.get('img_input_img', "")
+    use_orig_img = request.form.get('use_orig_img', "false")
     generation_type = request.form.get('generation_type', 'txt2img')
     image_size = request.form.get('image_size', 'original')
     cfg_scale = float(request.form.get('cfg_scale', 7))
@@ -537,7 +522,7 @@ def generate():
                     else:
                         seed = gconfig["custom_seed"]
 
-                    image_path = generateImage(pipe, model_name, prompt, prompts, negative_prompt, seed, width, height, img_input, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
+                    image_path = generateImage(pipe, model_name, prompt, prompts, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
 
                     #TODO: Store the generated image path
                     if image_path:
@@ -607,24 +592,25 @@ def addmodel():
         gconfig["downloading"] = False
         return jsonify(status='Error Downloading Model')
 
-@app.route('/serve_canny', methods=['POST'])
-def serve_canny():
-    if 'image' not in request.files:
-        return 'No image uploaded', 400
-
-    file = request.files['image']
+@app.route('/serve_controlnet', methods=['POST'])
+def serve_controlnet():
+    file = request.files.get('imageUpload', "")
+    controlnet_type = request.form.get('type_select', "")
     if not file:
         return 'No file provided', 400
 
     # Convert the uploaded file to a NumPy array
     img = Image.open(file)
+    width, height = img.width, img.height
     img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
-    # Apply Canny edge detection
-    edges = cv2.Canny(img, 100, 200)
-
     # Convert the result to a PIL Image
-    edges_image = Image.fromarray(edges)
+    if "canny" in controlnet_type:
+        edges_image = controlNets.get_canny_image(img, width, height)
+    if "depth" in controlnet_type:
+        edges_image = controlNets.get_depth_map(img, width, height)
+    else:
+        edges_image = controlNets.get_canny_image(img, width, height)
 
     # Save the result to a byte buffer
     buf = BytesIO()
@@ -633,9 +619,9 @@ def serve_canny():
 
     return send_file(buf, mimetype='image/png')
 
-@app.route('/canny')
-def canny():
-    return render_template('canny_preview.html')
+@app.route('/controlnet')
+def controlnet():
+    return render_template('controlnet_preview.html')
 
 @app.route('/status', methods=['GET'])
 def status():
@@ -816,7 +802,7 @@ def save_model_configs():
     json_data = request.get_json()
     import json
     for item in json_data:
-        model_config_path = item["path"]+".1.json"
+        model_config_path = item["path"]+".json"
         with open(model_config_path, "w", encoding="utf-8") as f:
             json.dump(item, f, indent=4)
     return jsonify({"message": "JSON saved successfully!"}), 200

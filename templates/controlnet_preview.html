@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <title>Canny Edge Detection</title>
+    <title>Controlet Preview</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles-new.css') }}">
     <style>
         body, html {
@@ -24,18 +24,44 @@
             position: absolute;
             top: 10px;
             width: min-content;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #generateForm {
+            z-index: 9999;
+        }
+
+        select {
+            margin: 20px 0;
+            position: absolute;
+            bottom: 10px;
+            width: max-content;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         img {
             height: 100%;
             max-width: 200%;
             max-height: 200%;
+            position: absolute;
             image-rendering: pixelated;
+            z-index: 1;
         }
     </style>
 </head>
 <body>
-    <input type="file" id="imageUpload" accept="image/*">
+    <div id="all">
+        <form id="generateForm">
+            <input type="file" id="imageUpload" name="imageUpload" accept="image/*">
+            <select name="type_select" id="type_select">
+                <option value="canny">Canny</option>
+                <option value="depth">Depth</option>
+            </select>
+        </form>
+    </div>
+    
     <img id="displayImage" alt="Processed Image">
 
     <script>
@@ -43,17 +69,14 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            const formData = new FormData();
-            formData.append('image', file);
+            const formData = new FormData(document.getElementById('generateForm'));
 
             try {
-                const response = await fetch('/serve_canny', { method: 'POST', body: formData });
+                const response = await fetch('/serve_controlnet', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error('Error uploading image');
 
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
-
-                //document.getElementById('imageUpload').style.display = 'none';
 
                 const imgElement = document.getElementById('displayImage');
                 imgElement.src = url;

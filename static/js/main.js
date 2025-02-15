@@ -405,6 +405,14 @@ document.getElementById("prompt").addEventListener("contextmenu", async function
     }
 });
 
+function updateImageScales() {
+    const images = document.querySelectorAll('#images img');
+    const value = Number(document.getElementById('img_display_input').value); // Convert value to a number
+    images.forEach(img => {
+        img.style.width = `${100 / value - 4}vw`;
+    });
+}
+
 const select = document.getElementById("model");
 const preview = document.getElementById("model-preview");
 
