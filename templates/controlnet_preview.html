@@ -58,6 +58,7 @@
             <select name="type_select" id="type_select">
                 <option value="canny">Canny</option>
                 <option value="depth">Depth</option>
+                <option value="normal">Normal Map</option>
             </select>
         </form>
     </div>
@@ -65,8 +66,8 @@
     <img id="displayImage" alt="Processed Image">
 
     <script>
-        document.getElementById('imageUpload').addEventListener('change', async function(event) {
-            const file = event.target.files[0];
+        async function send(event){
+            const file = document.getElementById('imageUpload').files[0];
             if (!file) return;
 
             const formData = new FormData(document.getElementById('generateForm'));
@@ -84,7 +85,11 @@
                 console.error(error);
                 alert('Failed to process the image. Please try again.');
             }
-        });
+        }
+
+        // Add event listeners without immediately invoking the function
+        document.getElementById('imageUpload').addEventListener('change', send);
+        document.getElementById('type_select').addEventListener('change', send);
     </script>
     <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
 </body>

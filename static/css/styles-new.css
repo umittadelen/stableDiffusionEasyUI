@@ -222,20 +222,22 @@ button:hover > svg {
 
 /* Status section */
 #status {
+    position: fixed; /* Keeps it from affecting other elements */
+    top: 1em;
+    left: 50%;
+    transform: translateX(-50%); /* Centers it */
+    z-index: 1000;
     text-align: center;
     color: var(--dark-text-color);
     font-size: 1.2em;
-    position: sticky;
-    top: 1em;
-    z-index: 1000;
     width: 80%;
     background-color: var(--mid-color);
     border: var(--border);
-    transition: all 1s ease-in-out;
+    transition: transform 1s ease-in-out;
     border-radius: 10px;
-    margin: 0 auto 0 auto;
     padding: 0 1em 1em 1em;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 #status.minimized {

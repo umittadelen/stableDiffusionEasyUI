@@ -16,16 +16,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (data) {
                 
                 document.getElementById("theme").value = JSON.stringify(data.theme) || '{"tone_1":"240, 240, 240","tone_2":"240, 218, 218","tone_3":"240, 163, 163"}';
-                document.getElementById("attention-slicing").value = data.enable_attention_slicing ? "True" : "False";
-                document.getElementById("xformers").value = data.enable_xformers_memory_efficient_attention ? "True" : "False";
-                document.getElementById("cpu-offload").value = data.enable_model_cpu_offload ? "True" : "False";
-                document.getElementById("sequential-cpu").value = data.enable_sequential_cpu_offload ? "True" : "False";
-                document.getElementById("long-clip").value = data.use_long_clip ? "True" : "False";
-                document.getElementById("show-latents").value = data.show_latents ? "True" : "False";
-                document.getElementById("load-previous-data").value = data.load_previous_data ? "True" : "False";
-                document.getElementById("use-multi-prompt").value = data.use_multi_prompt ? "True" : "False";
-                console.log(data.multi_prompt_separator);
+                document.getElementById("attention-slicing").value = data.enable_attention_slicing || "False";
+                document.getElementById("xformers").value = data.enable_xformers_memory_efficient_attention || "False";
+                document.getElementById("cpu-offload").value = data.enable_model_cpu_offload || "False";
+                document.getElementById("sequential-cpu").value = data.enable_sequential_cpu_offload || "False";
+                document.getElementById("long-clip").value = data.use_long_clip || "False";
+                document.getElementById("show-latents").value = data.show_latents || "False";
+                document.getElementById("load-previous-data").value = data.load_previous_data || "False";
+                document.getElementById("use-multi-prompt").value = data.use_multi_prompt || "False";
                 document.getElementById("multi-prompt-separator").value = data.multi_prompt_separator || "§";
+                document.getElementById("host").value = data.host || "localhost";
+                document.getElementById("port").value = data.port || "8080";
             }
         })
         .catch(error => console.error('Error loading settings:', error));
@@ -49,15 +50,17 @@ function saveSettings(event) {
     else
 
     // Handle other settings
-    settings.enable_attention_slicing = document.getElementById("attention-slicing").value === "True";
-    settings.enable_xformers_memory_efficient_attention = document.getElementById("xformers").value === "True";
-    settings.enable_model_cpu_offload = document.getElementById("cpu-offload").value === "True";
-    settings.enable_sequential_cpu_offload = document.getElementById("sequential-cpu").value === "True";
-    settings.use_long_clip = document.getElementById("long-clip").value === "True";
-    settings.show_latents = document.getElementById("show-latents").value === "True";
-    settings.load_previous_data = document.getElementById("load-previous-data").value === "True";
-    settings.use_multi_prompt = document.getElementById("use-multi-prompt").value === "True";
+    settings.enable_attention_slicing = document.getElementById("attention-slicing").value;
+    settings.enable_xformers_memory_efficient_attention = document.getElementById("xformers").value;
+    settings.enable_model_cpu_offload = document.getElementById("cpu-offload").value;
+    settings.enable_sequential_cpu_offload = document.getElementById("sequential-cpu").value;
+    settings.use_long_clip = document.getElementById("long-clip").value;
+    settings.show_latents = document.getElementById("show-latents").value;
+    settings.load_previous_data = document.getElementById("load-previous-data").value;
+    settings.use_multi_prompt = document.getElementById("use-multi-prompt").value;
     settings.multi_prompt_separator = document.getElementById("multi-prompt-separator").value.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
+    settings.host = document.getElementById("host").value;
+    settings.port = document.getElementById("port").value;
 
     fetch('/save_settings', {
         method: 'POST',

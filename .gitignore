@@ -11,3 +11,4 @@
 /static/json/models.json
 /static/json/-models.json
 /test.py
+/tools/__pycache__

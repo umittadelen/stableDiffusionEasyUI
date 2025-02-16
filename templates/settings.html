@@ -64,8 +64,19 @@
                 <option value="False">False</option>
             </select>
 
-            <label for="multi-prompt-separator">Multiple Prompt Seperator</label>
+            <label for="multi-prompt-separator">Multiple Prompt Seperator:</label>
             <input type="text" name="multi-prompt-separator" id="multi-prompt-separator">
+
+            <div id="form-separator"></div>
+
+            <p>ip and port will apply after restarting the server</p>
+            <label for="host">Host: (IP)</label>
+            <input type="text" name="host" id="host">
+
+            <label for="host">Port:</label>
+            <input type="number" name="port" id="port" min="0">
+
+            <div id="form-separator"></div>
 
             <button type="submit">Save Settings</button>
         </form>

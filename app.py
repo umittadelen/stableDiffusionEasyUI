@@ -1,5 +1,5 @@
 # import the required libraries
-from auto_installer import install_requirements
+from tools.auto_installer import install_requirements
 install_requirements()
 
 from flask import Flask, render_template, request, send_file, jsonify
@@ -29,10 +29,11 @@ from diffusers import (
     AutoencoderKL
 )
 from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor
-from transformers import pipeline as ppln
 from compel import Compel, ReturnedEmbeddingsType
 from diffusers.utils import load_image
-from downloadModelFromCivitai import downloadModelFromCivitai
+from tools.downloadModelFromCivitai import downloadModelFromCivitai
+from tools.BEiTDepthEstimation import BEiTDepthEstimation
+from tools.NormalMap import NormalMap
 import base64
 
 app = Flask(__name__)
@@ -70,6 +71,9 @@ gconfig = {
     "load_previous_data": True,
     "use_multi_prompt": True,
     "multi_prompt_separator": "§",
+
+    "host":"localhost",
+    "port":"8080",
 
     "SDXL":[
         "SDXL",
@@ -109,15 +113,9 @@ if not isDirectory(gconfig["generated_dir"]):
 
 class controlNets:
     def get_depth_map(image, width, height):
-        depth_estimator = ppln('depth-estimation')
-        image = Image.fromarray(image)
-        image = depth_estimator(image, use_fast=True, device="cuda")['depth']
-        image = np.array(image)
-        image = image[:, :, None]
-        image = np.concatenate([image, image, image], axis=2)
-        image = Image.fromarray(image).resize((width, height), resample=Image.BICUBIC)
-
-        return image
+        return BEiTDepthEstimation(image).resize((width, height), resample=Image.BICUBIC)
+    def get_normal_map(image, width, height):
+        return NormalMap(image).resize((width, height), resample=Image.BICUBIC)
     def get_canny_image(image, width, height):
         image = np.array(image)
 
@@ -162,6 +160,12 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
             controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-depth-sdxl-1.0", torch_dtype=torch.float16)
         if "depth" in generation_type and model_type in gconfig["SD 1.5"]:
             controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", torch_dtype=torch.float16)
+
+        if "normal" in generation_type and model_type in gconfig["SDXL"]:
+            #!controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=torch.float16)
+            raise Exception("Normal Map is not supported for SDXL")
+        if "normal" in generation_type and model_type in gconfig["SD 1.5"]:
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=torch.float16)
 
         kwargs["controlnet"] = controlnet
 
@@ -362,6 +366,8 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                         new_image = controlNets.get_canny_image(image, width, height)
                     if "depth" in generation_type:
                         new_image = controlNets.get_depth_map(image, width, height)
+                    if "normal" in generation_type:
+                        new_image = controlNets.get_normal_map(image, width, height)
                     else:
                         new_image = image
                 else:
@@ -527,6 +533,7 @@ def generate():
                     #TODO: Store the generated image path
                     if image_path:
                         gconfig["image_cache"][seed] = [image_path]
+            gconfig["status"] = "Generation Complete"
         except Exception:
             traceback_details = traceback.format_exc()
             gconfig["generating"] = False
@@ -540,7 +547,6 @@ def generate():
             torch.cuda.ipc_collect()
             gc.collect()
             torch.cuda.empty_cache()
-            gconfig["status"] = "Generation Complete"
             gconfig["progress"] = 0
             gconfig["generating"] = False
             gconfig["generation_stopped"] = False
@@ -602,13 +608,14 @@ def serve_controlnet():
     # Convert the uploaded file to a NumPy array
     img = Image.open(file)
     width, height = img.width, img.height
-    img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
     # Convert the result to a PIL Image
     if "canny" in controlnet_type:
         edges_image = controlNets.get_canny_image(img, width, height)
     if "depth" in controlnet_type:
         edges_image = controlNets.get_depth_map(img, width, height)
+    if "normal" in controlnet_type:
+        edges_image = controlNets.get_normal_map(img, width, height)
     else:
         edges_image = controlNets.get_canny_image(img, width, height)
 
@@ -840,5 +847,5 @@ def delete_model():
     return jsonify({"error": "Model not found"}), 404
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host=gconfig["host"], port=int(gconfig["port"]), debug=False)
     gconfig["status"] = "Server Started"

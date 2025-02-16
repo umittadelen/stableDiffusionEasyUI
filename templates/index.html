@@ -8,7 +8,11 @@
         <script src="https://cdn.jsdelivr.net/gh/seikichi/tiff.js@master/tiff.min.js"></script>
         
         <link rel="stylesheet" href="{{ url_for('static', filename='css/styles-new.css') }}">
-
+        <style>
+            #all {
+                margin-top: 100px;
+            }
+        </style>
     </head>
     <body>
         <div id="status" onclick="toggleStatus()">
@@ -97,6 +101,7 @@
                                 <option value="img2img">Image To Image</option>
                                 <option value="controlnet canny">ControlNet Canny</option>
                                 <option value="controlnet depth">ControlNet Depth</option>
+                                <option value="controlnet normal">ControlNet NormalMap</option>
                             </select><br>
 
                             <label for="use_orig_img" title="If this set to False Controlnet uses the image directly without progressing">Use Original Image: (controlnet)</label>

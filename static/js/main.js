@@ -231,10 +231,16 @@ function updateProgressBars(data) {
         dynamicProgressBar.style.width = `calc(${data.imgprogress}%)`;
         progressText.innerHTML = `Progress: ${data.imgprogress}% Remaining: ${data.remainingimages}`;
     }
+    if (data.imgprogress == "") {
+        dynamicProgressBar.style.width = `0%`;
+        alldynamicProgressBar.style.width = `0%`;
+        progressText.innerHTML = `Status: idle`;
+    
+    }
     else {
         dynamicProgressBar.style.width = `0%`;
         alldynamicProgressBar.style.width = `0%`;
-        progressText.innerHTML = `Progress: ${data.imgprogress.substring(0, 200)}`;
+        progressText.innerHTML = `${data.imgprogress.slice(-200).replace(/\n/g, '<br>')}`;
     }
 
     if (Number.isInteger(data.allpercentage)) {
