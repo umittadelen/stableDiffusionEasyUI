@@ -68,9 +68,7 @@
 
        ---
     - **Prompt**:<br>Enter the main prompt that describes the image you want to generate.<br>`prevent using short prompts (it can make NSFW images)`<br>(Multiple images can be generated using the multi prompt feature like `"prompt1§prompt2"  >  "prompt1","prompt2"`)
-    <br>
-    [[Click for a quick guide on writing better prompts]](https://umittadelen.github.io/better_prompting/)
-
+    <br> [[Click for a quick guide on writing better prompts]](https://umittadelen.github.io/better_prompting/)
 
        ---
     - **Negative Prompt**:<br>Enter negative prompts to specify what you want to avoid in the generated image.
