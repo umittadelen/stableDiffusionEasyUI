@@ -1,5 +1,5 @@
 # EasyUI
-### V1.1.2-2.1
+### V1.1.3
 
 **TextToImage** is a free, open-source text-to-image generation tool designed for ease of use, allowing anyone to run advanced models on their computer with customizable parameters and progress tracking.
 

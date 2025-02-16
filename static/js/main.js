@@ -225,22 +225,22 @@ function updateProgressBars(data) {
     const progressText = document.getElementById('progress');
     const dynamicProgressBar = document.getElementById('dynamic-progress-bar');
     const alldynamicProgressBar = document.getElementById('all-dynamic-progress-bar');
-
     // Update progress value smoothly
     if (Number.isInteger(data.imgprogress)) {
         dynamicProgressBar.style.width = `calc(${data.imgprogress}%)`;
         progressText.innerHTML = `Progress: ${data.imgprogress}% Remaining: ${data.remainingimages}`;
-    }
-    if (data.imgprogress == "") {
+    } else if (data.imgprogress.endsWith("Generation Stopped\n")===true){
         dynamicProgressBar.style.width = `0%`;
         alldynamicProgressBar.style.width = `0%`;
-        progressText.innerHTML = `Status: idle`;
-    
-    }
-    else {
+        progressText.innerHTML = `Generation Stopped`;
+    } else if (typeof data.imgprogress === 'string') {
         dynamicProgressBar.style.width = `0%`;
         alldynamicProgressBar.style.width = `0%`;
         progressText.innerHTML = `${data.imgprogress.slice(-200).replace(/\n/g, '<br>')}`;
+    } else if (data.imgprogress === "") {
+        dynamicProgressBar.style.width = `0%`;
+        alldynamicProgressBar.style.width = `0%`;
+        progressText.innerHTML = `Status: idle`;
     }
 
     if (Number.isInteger(data.allpercentage)) {
