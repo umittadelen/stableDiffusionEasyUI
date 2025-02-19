@@ -184,7 +184,8 @@ setInterval(() => {
 
                 updateProgressBars(data);
 
-                processImageUpdates(data.images);
+                console.log('data.images_reverse:', data.images_reverse || false);
+                processImageUpdates(data.images, data.images_reverse || false);
 
                 if (data.images.length < existingImages.size) {
                     existingImages.clear();
@@ -264,10 +265,13 @@ async function getTokenCount(inElementID, outElementId) {
     document.getElementById(outElementId).innerHTML = result['CLIP Token Count']
 }
 
-function processImageUpdates(images) {
+function processImageUpdates(images, reverse) {
     const imagesDiv = document.getElementById('images');
+    const imageList = reverse ? images.reverse() : images;
 
-    images.forEach((imgData, index) => {
+    console.log('data.images_reverse:', reverse);
+
+    imageList.forEach((imgData, index) => {
         const key = imgData.seed;
 
         if (existingImages.has(key)) {
@@ -285,13 +289,18 @@ function processImageUpdates(images) {
             img.onclick = () => openLink("image/" + imgData.img.split('/').pop());
 
             wrapper.appendChild(img);
-            imagesDiv.appendChild(wrapper);
+            if (reverse) {
+                imagesDiv.insertBefore(wrapper, imagesDiv.firstChild);
+            } else {
+                imagesDiv.appendChild(wrapper);
+            }
             existingImages.set(key, wrapper);
         }
-        if (index === images.length - 1) {
-            const lastImg = existingImages.get(key)?.querySelector('img');
-            if (lastImg) {
-                lastImg.src = `${imgData.img}?timestamp=${Date.now()}`; // Force refresh
+
+        if ((reverse && index === 0) || (!reverse && index === images.length - 1)) {
+            const imgToUpdate = existingImages.get(key)?.querySelector('img');
+            if (imgToUpdate) {
+                imgToUpdate.src = `${imgData.img}?timestamp=${Date.now()}`; // Force refresh
             }
         }
     });
@@ -427,8 +436,8 @@ const showPreview = (event) => {
     if (imageUrl) {
         preview.src = imageUrl;
         preview.style.display = "block";
-        preview.style.height = "50vw";
-        preview.style.maxHeight = "70%";
+        preview.style.height = "50vh";
+        preview.style.maxWidth = "70%";
         preview.style.width = "auto";
         preview.style.objectFit = "contain";
         preview.style.position = "absolute";

@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById("long-clip-model").value = data.long_clip_model || "zer0int/LongCLIP-GmP-ViT-L-14";
                 document.getElementById("show-latents").value = data.show_latents ? "True" : "False";
                 document.getElementById("load-previous-data").value = data.load_previous_data ? "True" : "False";
+                document.getElementById("reset-on-new-request").value = data.reset_on_new_request ? "True" : "False";
+                document.getElementById("reverse-image-order").value = data.reverse_image_order ? "True" : "False";
                 document.getElementById("use-multi-prompt").value = data.use_multi_prompt ? "True" : "False";
                 document.getElementById("multi-prompt-separator").value = data.multi_prompt_separator || "§";
                 document.getElementById("host").value = data.host || "localhost";
@@ -58,6 +60,8 @@ function saveSettings(event) {
     settings.long_clip_model = document.getElementById("long-clip-model").value;
     settings.show_latents = document.getElementById("show-latents").value === "True";
     settings.load_previous_data = document.getElementById("load-previous-data").value === "True";
+    settings.reset_on_new_request = document.getElementById("reset-on-new-request").value === "True";
+    settings.reverse_image_order = document.getElementById("reverse-image-order").value === "True";
     settings.use_multi_prompt = document.getElementById("use-multi-prompt").value === "True";
     settings.multi_prompt_separator = document.getElementById("multi-prompt-separator").value.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
     settings.host = document.getElementById("host").value;

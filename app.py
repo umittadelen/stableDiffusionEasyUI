@@ -60,6 +60,7 @@ gconfig = {
     "remainingImages": 0,
     "image_cache": {},
     "downloading": False,
+    "generation_done": False,
 
     "theme": {"tone_1": "240, 240, 240","tone_2": "240, 218, 218","tone_3": "240, 163, 163"},
     "enable_attention_slicing": True,
@@ -70,6 +71,8 @@ gconfig = {
     "long_clip_model": "zer0int/LongCLIP-GmP-ViT-L-14",
     "show_latents": False,
     "load_previous_data": True,
+    "reset_on_new_request": False,
+    "reverse_image_order": False,
     "use_multi_prompt": True,
     "multi_prompt_separator": "§",
 
@@ -291,19 +294,30 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
     gconfig["status"] = "Pipeline Loaded..."
     return pipe
 
-def latents_to_rgb(latents):
-    weights = (
-        (60, -60, 25, -70),
-        (60,  -5, 15, -50),
-        (60,  10, -5, -35),
-    )
+def latents_to_img(latents, pipe):
+    if len(latents.shape) == 3:
+        latents = latents.unsqueeze(0)
 
-    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(device))
-    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(device)
-    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
-    image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
+    latents = latents.to(torch.float16).to(pipe.vae.device)
+    with torch.no_grad():
+        decoded_images = pipe.vae.decode(latents / pipe.vae.config.scaling_factor).sample
 
-    return Image.fromarray(image_array)
+    decoded_images = decoded_images.cpu()
+    torch.cuda.empty_cache()
+
+    decoded_images = (decoded_images / 2 + 0.5).clamp(0, 1)
+    decoded_images = (decoded_images * 255).byte()
+    decoded_images = decoded_images.permute(0, 2, 3, 1).numpy()
+
+    image = Image.fromarray(decoded_images[0])
+    gc.collect()
+    return image
+
+def save_latents_image(latents, pipe, image_path, seed):
+    image = latents_to_img(latents, pipe)
+    if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
+        image.save(image_path, 'PNG')
+        gconfig["image_cache"][seed] = [image_path]
 
 def image_to_base64(img, temp_file=f"{gconfig["generated_dir"]}temp_base64_image.png"):
     img = img.convert("RGB")
@@ -316,21 +330,19 @@ def image_to_base64(img, temp_file=f"{gconfig["generated_dir"]}temp_base64_image
 def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
     #TODO: Generate image with progress tracking
     current_time = time.time()
+    gconfig["generation_done"] = False
 
     if not isDirectory(gconfig["generated_dir"]):
         os.makedirs(gconfig["generated_dir"])
 
     def progress(pipe, step_index, timestep, callback_kwargs):
         gconfig["status"] = int(math.floor(step_index / samplingSteps * 100))
-        gconfig["progress"] = int(math.floor(((image_count - gconfig["remainingImages"]) + (step_index / samplingSteps)) / (image_count * prompt_count) * 100))
+        gconfig["progress"] = int(math.floor(((image_count * prompt_count - gconfig["remainingImages"]) + (step_index / samplingSteps)) / (image_count * prompt_count) * 100))
 
         if gconfig["show_latents"]:
             image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
-            image = latents_to_rgb(callback_kwargs["latents"][0])
-            if not gconfig["generation_stopped"]:
-                image.save(image_path, 'PNG')
 
-            gconfig["image_cache"][seed] = [image_path]
+            threading.Thread(target=save_latents_image, args=(callback_kwargs["latents"][0], pipe, image_path, seed)).start()
 
         if gconfig["generation_stopped"]:
             gconfig["status"] = "Generation Stopped"
@@ -457,7 +469,9 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
 
         #TODO: Save the image to the temporary directory
         image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
-        image.save(image_path, 'PNG', pnginfo=metadata)
+        if not gconfig["generation_stopped"]:
+            gconfig["generation_done"] = True
+            image.save(image_path, 'PNG', pnginfo=metadata)
 
         gconfig["status"] = "DONE"
         gconfig["progress"] = 0
@@ -479,7 +493,8 @@ def generate():
         return jsonify(status='Image generation already in progress'), 400
 
     gconfig["generating"] = True
-    gconfig["image_cache"] = {}
+    if gconfig["reset_on_new_request"]:
+        gconfig["image_cache"] = {}
     gconfig["status"] = "Starting Image Generation..."
 
     #TODO: Get parameters from the request
@@ -663,6 +678,7 @@ def status():
         } for seed, path in gconfig["image_cache"].items()]
 
     return jsonify(
+        images_reverse=gconfig["reverse_image_order"],
         images=images,
         imgprogress=gconfig["status"],
         allpercentage=gconfig["progress"],
