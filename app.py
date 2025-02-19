@@ -67,6 +67,7 @@ gconfig = {
     "enable_model_cpu_offload": True,
     "enable_sequential_cpu_offload": False,
     "use_long_clip": True,
+    "long_clip_model": "zer0int/LongCLIP-GmP-ViT-L-14",
     "show_latents": False,
     "load_previous_data": True,
     "use_multi_prompt": True,
@@ -86,6 +87,8 @@ gconfig = {
         "SD 1.5"
     ]
 }
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 if isFile("./static/json/settings.json"):
     gconfig.update(json.load(open('./static/json/settings.json', 'r', encoding='utf-8')))
@@ -245,11 +248,15 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
 
     gconfig["status"] = "Loading New Pipeline... (loading VAE)"
     if gconfig["use_long_clip"]:
-        clip_model = CLIPModel.from_pretrained("zer0int/LongCLIP-GmP-ViT-L-14", torch_dtype=torch.float16)
-        clip_processor = CLIPProcessor.from_pretrained("zer0int/LongCLIP-GmP-ViT-L-14")
+        print(gconfig["long_clip_model"])
+        clip_model = CLIPModel.from_pretrained(gconfig["long_clip_model"], torch_dtype=torch.float16)
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"])
+        print("max token limit:", clip_processor.tokenizer.model_max_length)
     else:
+        print("openai/clip-vit-base-patch16")
         clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16", torch_dtype=torch.float16)
         clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
+        print("max token limit:", clip_processor.tokenizer.model_max_length)
 
     pipe.clip_model = clip_model
     pipe.clip_processor = clip_processor
@@ -270,11 +277,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
         pipe = load_scheduler(pipe, scheduler_name)
     gconfig["status"] = "Loading New Pipeline... (pipe loaded)"
 
-    if torch.cuda.is_available():
-        pipe.to('cuda')
-    else:
-        pipe.to('cpu')
-        gconfig["status"] = "Using CPU..."
+    pipe.to(device)
     
     if gconfig["enable_attention_slicing"]:
         pipe.enable_attention_slicing()
@@ -295,8 +298,8 @@ def latents_to_rgb(latents):
         (60,  10, -5, -35),
     )
 
-    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
-    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
+    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(device))
+    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(device)
     rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
@@ -324,7 +327,8 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
         if gconfig["show_latents"]:
             image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
             image = latents_to_rgb(callback_kwargs["latents"][0])
-            image.save(image_path, 'PNG')
+            if not gconfig["generation_stopped"]:
+                image.save(image_path, 'PNG')
 
             gconfig["image_cache"][seed] = [image_path]
 
@@ -394,21 +398,41 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
             kwargs["width"] = width
             kwargs["height"] = height
         
+        def pad_embeddings(embeds, target_length):
+            current_length = embeds.shape[1]
+            if current_length < target_length:
+                padding = torch.zeros((embeds.shape[0], target_length - current_length, embeds.shape[2]), dtype=embeds.dtype, device=embeds.device)
+                embeds = torch.cat([embeds, padding], dim=1)
+            return embeds
+
         if not gconfig["enable_sequential_cpu_offload"]:
             if hasattr(pipe, "tokenizer_2"):
+                print("Using Compel for SDXL")
                 compel = Compel(
-                    tokenizer=[pipe.tokenizer, pipe.tokenizer_2] ,
+                    tokenizer=[pipe.tokenizer, pipe.tokenizer_2],
                     text_encoder=[pipe.text_encoder, pipe.text_encoder_2],
                     returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED,
-                    requires_pooled=[False, True]
+                    requires_pooled=[False, True],
+                    truncate_long_prompts=False
                 )
-                kwargs["prompt_embeds"], kwargs["pooled_prompt_embeds"] = compel(prompt)
-                kwargs["negative_prompt_embeds"], kwargs["negative_pooled_prompt_embeds"] = compel(negative_prompt)
+                prompt_embeds, pooled_prompt_embeds = compel(prompt)
+                negative_prompt_embeds, negative_pooled_prompt_embeds = compel(negative_prompt)
+
+                max_length = max(prompt_embeds.shape[1], negative_prompt_embeds.shape[1])
+                prompt_embeds = pad_embeddings(prompt_embeds, max_length)
+                negative_prompt_embeds = pad_embeddings(negative_prompt_embeds, max_length)
+
+                kwargs["prompt_embeds"] = prompt_embeds
+                kwargs["pooled_prompt_embeds"] = pooled_prompt_embeds
+                kwargs["negative_prompt_embeds"] = negative_prompt_embeds
+                kwargs["negative_pooled_prompt_embeds"] = negative_pooled_prompt_embeds
             else:
+                print("Using Compel for SD 1.5")
                 compel = Compel(tokenizer=pipe.tokenizer, text_encoder=pipe.text_encoder)
                 kwargs["prompt_embeds"] = compel(prompt)
                 kwargs["negative_prompt_embeds"] = compel(negative_prompt)
         else:
+            print("Using Default prompt")
             kwargs["prompt"] = prompt
             kwargs["negative_prompt"] = negative_prompt
 
