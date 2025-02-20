@@ -294,30 +294,26 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
     gconfig["status"] = "Pipeline Loaded..."
     return pipe
 
-def latents_to_img(latents, pipe):
-    if len(latents.shape) == 3:
-        latents = latents.unsqueeze(0)
+def latents_to_img(latents, pipe) -> Image:
+    weights = (
+        (60, -60, 25, -70),
+        (60,  -5, 15, -50),
+        (60,  10, -5, -35),
+    )
 
-    latents = latents.to(torch.float16).to(pipe.vae.device)
-    with torch.no_grad():
-        decoded_images = pipe.vae.decode(latents / pipe.vae.config.scaling_factor).sample
+    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
+    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
+    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+    image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
-    decoded_images = decoded_images.cpu()
-    torch.cuda.empty_cache()
-
-    decoded_images = (decoded_images / 2 + 0.5).clamp(0, 1)
-    decoded_images = (decoded_images * 255).byte()
-    decoded_images = decoded_images.permute(0, 2, 3, 1).numpy()
-
-    image = Image.fromarray(decoded_images[0])
-    gc.collect()
-    return image
+    return Image.fromarray(image_array)
 
 def save_latents_image(latents, pipe, image_path, seed):
-    image = latents_to_img(latents, pipe)
-    if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
-        image.save(image_path, 'PNG')
-        gconfig["image_cache"][seed] = [image_path]
+    if not gconfig["enable_model_cpu_offload"]:
+        image = latents_to_img(latents, pipe)
+        if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
+            image.save(image_path, 'PNG')
+            gconfig["image_cache"][seed] = [image_path]
 
 def image_to_base64(img, temp_file=f"{gconfig["generated_dir"]}temp_base64_image.png"):
     img = img.convert("RGB")
@@ -419,7 +415,6 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
 
         if not gconfig["enable_sequential_cpu_offload"]:
             if hasattr(pipe, "tokenizer_2"):
-                print("Using Compel for SDXL")
                 compel = Compel(
                     tokenizer=[pipe.tokenizer, pipe.tokenizer_2],
                     text_encoder=[pipe.text_encoder, pipe.text_encoder_2],
@@ -439,12 +434,10 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
                 kwargs["negative_prompt_embeds"] = negative_prompt_embeds
                 kwargs["negative_pooled_prompt_embeds"] = negative_pooled_prompt_embeds
             else:
-                print("Using Compel for SD 1.5")
                 compel = Compel(tokenizer=pipe.tokenizer, text_encoder=pipe.text_encoder)
                 kwargs["prompt_embeds"] = compel(prompt)
                 kwargs["negative_prompt_embeds"] = compel(negative_prompt)
         else:
-            print("Using Default prompt")
             kwargs["prompt"] = prompt
             kwargs["negative_prompt"] = negative_prompt
 
