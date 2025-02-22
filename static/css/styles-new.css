@@ -2,10 +2,6 @@
 :root {
     --font-family: "Quicksand", "Arial Rounded MT Bold", Arial, Helvetica, sans-serif;
 
-    --tone1: 240, 240, 240;
-    --tone2: 240, 218, 218;
-    --tone3: 240, 163, 163;
-
     --progress-bar-color: rgba(var(--tone3), 0.75);
 
     --primary-color: rgb(var(--tone1));
@@ -18,6 +14,20 @@
 
     --transition: all 0.3s ease-in-out;
     --border: 2px solid var(--highlight-color);
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --tone1: 0, 0, 0;
+        --tone2: 0, 0, 0;
+        --tone3: 0, 0, 0;
+    }
+}
+@media (prefers-color-scheme: light) {
+    :root {
+        --tone1: 255, 255, 255;
+        --tone2: 255, 255, 255;
+        --tone3: 255, 255, 255;
+    }
 }
 
 /* Font face definition */

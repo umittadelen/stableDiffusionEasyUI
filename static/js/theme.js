@@ -13,9 +13,9 @@ async function loadTheme() {
         };
 
         // Apply the saved theme to the document
-        document.documentElement.style.setProperty('--tone1', savedData.tone_1);
-        document.documentElement.style.setProperty('--tone2', savedData.tone_2);
-        document.documentElement.style.setProperty('--tone3', savedData.tone_3);
+        document.documentElement.style.setProperty('--tone1', savedData.tone_1, 'important');
+        document.documentElement.style.setProperty('--tone2', savedData.tone_2, 'important');
+        document.documentElement.style.setProperty('--tone3', savedData.tone_3, 'important');
     } catch (error) {
         console.error('Error loading settings:', error);
 
@@ -26,9 +26,9 @@ async function loadTheme() {
             "tone_3": "240, 163, 163"
         };
 
-        document.documentElement.style.setProperty('--tone1', defaultTheme.tone_1);
-        document.documentElement.style.setProperty('--tone2', defaultTheme.tone_2);
-        document.documentElement.style.setProperty('--tone3', defaultTheme.tone_3);
+        document.documentElement.style.setProperty('--tone1', defaultTheme.tone_1, 'important');
+        document.documentElement.style.setProperty('--tone2', defaultTheme.tone_2, 'important');
+        document.documentElement.style.setProperty('--tone3', defaultTheme.tone_3, 'important');
     }
 }
 

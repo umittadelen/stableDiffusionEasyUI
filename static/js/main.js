@@ -184,7 +184,6 @@ setInterval(() => {
 
                 updateProgressBars(data);
 
-                console.log('data.images_reverse:', data.images_reverse || false);
                 processImageUpdates(data.images, data.images_reverse || false);
 
                 if (data.images.length < existingImages.size) {
@@ -267,11 +266,15 @@ async function getTokenCount(inElementID, outElementId) {
 
 function processImageUpdates(images, reverse) {
     const imagesDiv = document.getElementById('images');
-    const imageList = reverse ? images.reverse() : images;
 
-    console.log('data.images_reverse:', reverse);
+    if (reverse) {
+        images.reverse()
+        var editedImagesList = images;
+    } else {
+        var editedImagesList = images;
+    }
 
-    imageList.forEach((imgData, index) => {
+    editedImagesList.forEach((imgData, index) => {
         const key = imgData.seed;
 
         if (existingImages.has(key)) {
@@ -289,7 +292,8 @@ function processImageUpdates(images, reverse) {
             img.onclick = () => openLink("image/" + imgData.img.split('/').pop());
 
             wrapper.appendChild(img);
-            if (reverse) {
+
+            if (reverse && index === 0) {
                 imagesDiv.insertBefore(wrapper, imagesDiv.firstChild);
             } else {
                 imagesDiv.appendChild(wrapper);
@@ -343,6 +347,10 @@ document.addEventListener('visibilitychange', function () {
             ? 'Pre'
             : 'Unk';
     document.title = `Image Generator (${state})`;
+    if (state === 'Vis') {
+        existingImages.clear();
+        document.getElementById('images').innerHTML = '';
+    }
 });
 
 function stopButtonOnClick(event) {
