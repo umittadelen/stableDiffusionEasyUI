@@ -1,7 +1,3 @@
-# import the required libraries
-from tools.auto_installer import install_requirements
-install_requirements()
-
 from flask import Flask, render_template, request, send_file, jsonify
 import torch, random, os, math, time, threading, sys, subprocess, glob, gc, logging, cv2, json
 from PIL import PngImagePlugin, Image
@@ -506,10 +502,10 @@ def generate():
     image_size = request.form.get('image_size', 'original')
     cfg_scale = float(request.form.get('cfg_scale', 7))
     image_count = int(request.form.get('image_count', 4))
-    custom_seed = int(request.form.get('custom_seed', -1))
+    custom_seed = int(request.form.get('custom_seed', gconfig["custom_seed"]))
     samplingSteps = int(request.form.get('sampling_steps', 28))
 
-    if custom_seed != -1:
+    if custom_seed != gconfig["custom_seed"]:
         image_count = 1
 
     #save the temp image if provided and if not txt2img
@@ -555,10 +551,10 @@ def generate():
                     gconfig["progress"] = 0
 
                     #TODO: Generate a new seed for each image
-                    if gconfig["custom_seed"] == -1:
+                    if custom_seed == gconfig["custom_seed"]:
                         seed = random.randint(0, 100000000000)
                     else:
-                        seed = gconfig["custom_seed"]
+                        seed = custom_seed
 
                     image_path = generateImage(pipe, model_name, prompt, prompts, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
 

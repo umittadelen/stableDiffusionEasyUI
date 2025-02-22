@@ -175,7 +175,8 @@ async function resetFormButtonOnClick(event) {
 
 setInterval(() => {
     if (document.visibilityState === 'visible' && !pendingUpdates && !isCleared) {
-        pendingUpdates = true; // Prevent overlapping updates
+        pendingUpdates = true;
+        console.log('Fetching status...');
 
         fetch('/status', { cache: 'no-store' })
             .then((response) => response.json())
@@ -186,13 +187,15 @@ setInterval(() => {
 
                 processImageUpdates(data.images, data.images_reverse || false);
 
+                updateImageScales();
+
                 if (data.images.length < existingImages.size) {
                     existingImages.clear();
                     document.getElementById('images').innerHTML = '';
                 }
             })
-            .catch((error) => {
-                console.error('Error fetching status:', error);
+            .catch(() => {
+                updateProgressBars({}, "Error fetching status");
                 document.getElementById('all').style.display = 'none';
             })
             .finally(() => {
@@ -221,32 +224,44 @@ document.addEventListener('contextmenu', function (event) {
     }
 });
 
-function updateProgressBars(data) {
+function updateProgressBars(data, error = "") {
     const progressText = document.getElementById('progress');
     const dynamicProgressBar = document.getElementById('dynamic-progress-bar');
     const alldynamicProgressBar = document.getElementById('all-dynamic-progress-bar');
-    // Update progress value smoothly
+
+    const setProgress = (element, value) => element.style.width = `calc(${value}%)`;
+    const resetProgress = () => {
+        dynamicProgressBar.style.width = '0%';
+        alldynamicProgressBar.style.width = '0%';
+    };
+
+    if (error) {
+        progressText.innerHTML = error;
+        resetProgress();
+        return;
+    }
+
     if (Number.isInteger(data.imgprogress)) {
-        dynamicProgressBar.style.width = `calc(${data.imgprogress}%)`;
+        setProgress(dynamicProgressBar, data.imgprogress);
         progressText.innerHTML = `Progress: ${data.imgprogress}% Remaining: ${data.remainingimages}`;
-    } else if (data.imgprogress.endsWith("Generation Stopped\n")===true){
-        dynamicProgressBar.style.width = `0%`;
-        alldynamicProgressBar.style.width = `0%`;
-        progressText.innerHTML = `Generation Stopped`;
-    } else if (typeof data.imgprogress === 'string') {
-        dynamicProgressBar.style.width = `0%`;
-        alldynamicProgressBar.style.width = `0%`;
-        progressText.innerHTML = `${data.imgprogress.slice(-200).replace(/\n/g, '<br>')}`;
-    } else if (data.imgprogress === "") {
-        dynamicProgressBar.style.width = `0%`;
-        alldynamicProgressBar.style.width = `0%`;
-        progressText.innerHTML = `Status: idle`;
+    }
+    else if (data.imgprogress.endsWith("Generation Stopped\n")) {
+        resetProgress();
+        progressText.innerHTML = 'Generation Stopped';
+    }
+    else if (typeof data.imgprogress === 'string') {
+        resetProgress();
+        progressText.innerHTML = data.imgprogress.slice(-200).replace(/\n/g, '<br>');
+    }
+    else if (data.imgprogress.trim() === "") {
+        resetProgress();
+        progressText.innerHTML = 'Status: idle';
     }
 
     if (Number.isInteger(data.allpercentage)) {
-        alldynamicProgressBar.style.width = `calc(${data.allpercentage}%)`;
+        setProgress(alldynamicProgressBar, data.allpercentage);
     } else {
-        alldynamicProgressBar.style.width = `0%`;
+        setProgress(alldynamicProgressBar, 0);
     }
 }
 
@@ -436,6 +451,98 @@ function updateImageScales() {
     });
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    const dropArea = document.getElementById('drop-area');
+
+    dropArea.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropArea.classList.add('dragover');
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+        dropArea.classList.remove('dragover');
+    });
+
+    dropArea.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropArea.classList.remove('dragover');
+
+        const file = event.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            console.log('Dropped file:', file);
+            handleImageDrop(file);
+        } else {
+            alert('Please drop an image file.');
+        }
+    });
+});
+
+function handleImageDrop(file) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const uint8Array = new Uint8Array(event.target.result);
+        const metadata = extractPngTextChunks(uint8Array);
+        console.log('Extracted metadata:', metadata);
+        if (metadata) {
+            updateFormFields(metadata);
+        } else {
+            alert("No metadata found in this PNG image.");
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function extractPngTextChunks(uint8Array) {
+    const textChunks = {};
+    const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+    let position = 8;  // Skip PNG header
+
+    if (!pngSignature.every((byte, index) => uint8Array[index] === byte)) {
+        console.error('Not a valid PNG file');
+        return null;
+    }
+
+    while (position < uint8Array.length) {
+        const length = new DataView(uint8Array.buffer).getUint32(position, false);
+        const chunkType = String.fromCharCode(...uint8Array.slice(position + 4, position + 8));
+        const chunkData = uint8Array.slice(position + 8, position + 8 + length);
+
+        if (chunkType === 'tEXt') {
+            const textData = new TextDecoder().decode(chunkData);
+            const [key, value] = textData.split('\u0000');
+            textChunks[key] = value;
+        }
+
+        position += 12 + length;
+    }
+
+    return textChunks;
+}
+
+function updateFormFields(metadata) {
+    const form = document.getElementById('generateForm');
+    const fieldMapping = {
+        'prompt': 'Prompt',
+        'negative_prompt': 'NegativePrompt',
+        'width': 'Width',
+        'height': 'Height',
+        'cfg_scale': 'CFGScale',
+        'strength': 'Strength',
+        'custom_seed': 'Seed',
+        'sampling_steps': 'SamplingSteps',
+        'model': 'Model',
+        'scheduler': 'Scheduler',
+    };
+
+    Object.entries(fieldMapping).forEach(([formField, metaKey]) => {
+        if (metadata[metaKey] && metadata[metaKey] !== 'N/A') {
+            form.elements[formField].value = metadata[metaKey];
+            form.elements[formField].dispatchEvent(new Event('change'));
+        }
+    });
+    console.log('Form fields updated');
+}
+
 const select = document.getElementById("model");
 const preview = document.getElementById("model-preview");
 
@@ -458,7 +565,6 @@ const updatePosition = (event) => {
     preview.style.left = `${x - preview.getBoundingClientRect().width / 2}px`;
     preview.style.top = `${y + 10}px`;
 };
-
 
 const hidePreview = () => preview.style.display = "none";
 

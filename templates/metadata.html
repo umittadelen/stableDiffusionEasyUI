@@ -180,7 +180,7 @@
                     base64imgElement.classList.add('img');
                     base64imgElement.src = value;
                     base64imgElement.onclick = (event) => {
-                        downloadImageWithoutMetadata(event.target.src);
+                        downloadImage(event.target.src);
                     };
                     valueElement.appendChild(base64imgElement);
                     const valueText = document.createElement('textarea');
@@ -226,6 +226,14 @@
                 a.download = 'image_without_metadata.png'; // specify the download file name
                 a.click();
             };
+        }
+
+        function downloadImage(imageSrc) {
+            // Create a download link and trigger download
+            const a = document.createElement('a');
+            a.href = imageSrc;
+            a.download = 'image_with_metadata.png'; // specify the download file name
+            a.click();
         }
 
     </script>

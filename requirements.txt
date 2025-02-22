@@ -1,8 +1,8 @@
 Flask
-diffusers
+diffusers==0.32.2
 Pillow
-transformers
-opencv-python
+transformers==4.48.1
+opencv-python==4.10.0.84
 torch --extra-index-url https://download.pytorch.org/whl/cu124
 torchvision --extra-index-url https://download.pytorch.org/whl/cu124
 torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
