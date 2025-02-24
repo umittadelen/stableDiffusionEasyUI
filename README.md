@@ -1,5 +1,5 @@
 # EasyUI
-### V1.1.5
+### V1.1.6
 
 **TextToImage** is a free, open-source text-to-image generation tool designed for ease of use, allowing anyone to run advanced models on their computer with customizable parameters and progress tracking.
 
@@ -25,71 +25,91 @@
 ### Steps
 
 1. **Clone the Repository**:
-    ```bash
-    git clone https://github.com/umittadelen/stableDiffusionEasyUI.git
-    cd stableDiffusionEasyUI
-    ```
+   ```bash
+   git clone https://github.com/umittadelen/stableDiffusionEasyUI.git
+   cd stableDiffusionEasyUI
+   ```
 
 2. **Change the IP**:<br>
-    This step is not that important but the starting `ip:port` is `localhost:8080`
-    <br>It is possible to change this from settings page
+   This step is not that important but the starting `ip:port` is `localhost:8080`
+   <br>It is possible to change this from settings page
 3. **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Usage
 
 ### Running the Application
 
+<details>
+<summary><span style="font-size:large;"><b>Using `app.py`<b></span></summary>
+
 1. **Start the Flask Server**:
-    ```bash
-    python app.py
-    ```
+   ```bash
+   python app.py
+   ```
    ---
 2. **Access the Application**:<br>
-    Open your web browser and navigate to `http://localhost:8080`.
+   Open your web browser and navigate to `http://localhost:8080`.
+
+</details>
+
+<details>
+<summary><span style="font-size:large;"><b>Using `run-cu126`<b></span></summary>
+
+1. **Run the bat file in terminal**:
+   - <span style="font-weight:lighter;"><b>_Windows_</b> and <b>_CUDA 12.6+_</b> is required to run this</span>
+   ```bash
+   run-cu126
+   ```
+   ---
+2. **Access the Application**:<br>
+   Open your web browser and navigate to `http://localhost:8080`.
+
+</details>
+
 ---
 ### Generating Images
 
 0. **Download a Model**:<br>
-    - Click to `Model Editor` button and download model using the civitai model id and version id (you can get the ids from `AIR:   123456 @ 654321`)
+   - Click to `Model Editor` button and download model using the civitai model id and version id (you can get the ids from `AIR:   123456 @ 654321`)
 
    ---
 1. **Choose a Model**:<br>
-    - Select a model from the dropdown list or add a new model URL.
+   - Select a model from the dropdown list or add a new model URL.
    
    ---
 2. **Set Parameters**:
-    - **Model Type**:<br>Choose the type of model (this step is automatically done if the model downloaded using the `model editor` page) `(e.g., SDXL, SD1.5, FLUX)`.
+   - **Model Type**:<br>Choose the type of model (this step is automatically done if the model downloaded using the `model editor` page) `(e.g., SDXL, SD1.5, FLUX)`.
 
-       ---
-    - **Scheduler**:<br> Select the scheduler model. `(default is [Euler A])`
+      ---
+   - **Scheduler**:<br> Select the scheduler model. `(default is [Euler A])`
 
-       ---
-    - **Prompt**:<br>Enter the main prompt that describes the image you want to generate.<br>`prevent using short prompts (it can make NSFW images)`<br>(Multiple images can be generated using the multi prompt feature like `"prompt1§prompt2"  >  "prompt1","prompt2"`)
+      ---
+   - **Prompt**:<br>Enter the main prompt that describes the image you want to generate.<br>`prevent using short prompts (it can make NSFW images)`<br>(Multiple images can be generated using the multi prompt feature like `"prompt1§prompt2"  >  "prompt1","prompt2"`)
     <br> [[Click for a quick guide on writing better prompts]](https://umittadelen.github.io/better_prompting/)
 
-       ---
-    - **Negative Prompt**:<br>Enter negative prompts to specify what you want to avoid in the generated image.
+      ---
+   - **Negative Prompt**:<br>Enter negative prompts to specify what you want to avoid in the generated image.
 
-       ---
-    - **Width and Height**:<br>Set the dimensions of the generated image.
+      ---
+   - **Width and Height**:<br>Set the dimensions of the generated image.
 
-       ---
-    - **CFG Scale**:<br>Adjust the scale value to control how closely the AI follows your prompts.
+      ---
+   - **CFG Scale**:<br>Adjust the scale value to control how closely the AI follows your prompts.
 
-       ---
-    - **Sampling Steps**:<br>Set the number of sampling steps. `(higher number means more steps | 30 is recommended)`
+      ---
+   - **Sampling Steps**:<br>Set the number of sampling steps. `(higher number means more steps | 30 is recommended)`
 
-       ---
-    - **Number of Images**:<br>Specify the number of images to generate.
+      ---
+   - **Number of Images**:<br>Specify the number of images to generate.
 
-       ---
-    - **Custom Seed**:<br>If set to `-1` generates variated images.
+      ---
+   - **Custom Seed**:<br>If set to `-1` generates variated images.
 ---
 3. **Generate Images**:
-    Click the "Generate Images" button to start the image generation process.
+   Click the "Generate Images" button to start the image generation process.
 
 ### Additional Features
 

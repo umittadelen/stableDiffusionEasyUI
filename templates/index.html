@@ -15,7 +15,7 @@
         </style>
     </head>
     <body id="drop-area" class="drop-area">
-        <div id="status" onclick="toggleStatus()">
+        <div id="status" oncontextmenu="toggleStatus(event)">
             <p id="progress">Nothing Generating Yet</p>
             <div id="progress-bar-container">
                 <span class="progress-bar" id="dynamic-progress-bar"></span>
@@ -125,6 +125,11 @@
                             <div id="strength">
                                 <label for="strength" title="enter value between 0.0-1.0.   Higher value = closer to prompt">Strength:</label>
                                 <input type="number" min="0.0" max="1.0" step="0.01" id="strength" name="strength" placeholder="0.5" value="0.5"><br>
+                            </div>
+
+                            <div id="clip_skip">
+                                <label for="strength" title="leave it empty if you dont know what are you doing<br>Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that the output of the pre-final layer will be used for computing the prompt embeddings.">Clip Skip:</label>
+                                <input type="number" min="0" step="1" id="clip_skip" name="clip_skip" placeholder="2" value="0"><br>
                             </div>
                         </details>
                     </div>

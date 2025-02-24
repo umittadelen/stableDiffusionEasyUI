@@ -137,10 +137,6 @@ def downloadModelFromCivitai(modelID, versionID):
                 print("Model does not exist. Downloading...")
                 downloadModel(modelData, gconfig["CAI_TOKEN"])
                 data.append(modelData)  # Add the new model data to the list
-
-            # Write the updated list to the file
-            with open("./static/json/models.json", "w") as file:
-                json.dump(data, file, indent=4)
     finally:
         gconfig["downloading"] = False
 

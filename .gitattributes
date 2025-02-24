@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Track all files in the venv folder with Git LFS
+venv.zip filter=lfs diff=lfs merge=lfs -text

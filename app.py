@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, send_file, jsonify
-import torch, random, os, math, time, threading, sys, subprocess, glob, gc, logging, cv2, json
+import torch, random, os, math, time, threading, sys, subprocess, glob, gc, logging, cv2, json, requests
 from PIL import PngImagePlugin, Image
 import numpy as np
 from io import BytesIO
@@ -65,6 +65,9 @@ gconfig = {
     "enable_sequential_cpu_offload": False,
     "use_long_clip": True,
     "long_clip_model": "zer0int/LongCLIP-GmP-ViT-L-14",
+    "fallback_vae_model": "madebyollin/sdxl-vae-fp16-fix",
+    "default_clip_model": "openai/clip-vit-base-patch16",
+    "fallback_tokenizer_model": "openai/clip-vit-base-patch16",
     "show_latents": False,
     "load_previous_data": True,
     "reset_on_new_request": False,
@@ -100,7 +103,6 @@ gconfig["HF_TOKEN"] = (
     ""
 )
 
-#login to huggingface_cli using the lib
 def login_to_huggingface():
     from huggingface_hub import login
     if gconfig["HF_TOKEN"]:
@@ -126,7 +128,6 @@ class controlNets:
         canny_edges = np.concatenate([canny_edges, canny_edges, canny_edges], axis=2)
         return Image.fromarray(canny_edges).resize((width, height), resample=Image.BICUBIC)
 
-#TODO:  function to load the selected scheduler from name
 def load_scheduler(pipe, scheduler_name):
     if   scheduler_name == "DPM++ 2M": pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
     elif scheduler_name == "DPM++ 2M Karras": pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config, use_karras_sigmas=True)
@@ -145,8 +146,7 @@ def load_scheduler(pipe, scheduler_name):
     elif scheduler_name == "LMS Karras": pipe.scheduler = LMSDiscreteScheduler.from_config(pipe.scheduler.config, use_karras_sigmas=True)
     return pipe
 
-#TODO:  function to load pipeline from given huggingface repo and scheduler
-def load_pipeline(model_name, model_type, generation_type, scheduler_name):
+def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_skip):
     gconfig["status"] = "Loading New Pipeline... (loading Pipeline)"
     #TODO: Set the pipeline
 
@@ -173,11 +173,15 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
 
     if model_type in gconfig["SD 1.5"] and "txt2img" in generation_type:
         kwargs["custom_pipeline"] = "lpw_stable_diffusion"
+        if clip_skip != 0:
+            kwargs["clip_skip"] = clip_skip
     elif model_type in gconfig["SDXL"] and "txt2img" in generation_type:
         kwargs["custom_pipeline"] = "lpw_stable_diffusion_xl"
-        kwargs["clip_skip"] = 2
-        tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
-        kwargs["tokenizer"] = tokenizer
+        if clip_skip == 0:
+            kwargs["clip_skip"] = 2
+        else:
+            kwargs["clip_skip"] = clip_skip
+    print(f"using clip_skip: {clip_skip}")
 
     if "img2img" in generation_type:
         pipeline = (
@@ -252,9 +256,9 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
         clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"])
         print("max token limit:", clip_processor.tokenizer.model_max_length)
     else:
-        print("openai/clip-vit-base-patch16")
-        clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16", torch_dtype=torch.float16)
-        clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
+        print(gconfig["default_clip_model"])
+        clip_model = CLIPModel.from_pretrained(gconfig["default_clip_model"], torch_dtype=torch.float16)
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["default_clip_model"])
         print("max token limit:", clip_processor.tokenizer.model_max_length)
 
     pipe.clip_model = clip_model
@@ -262,13 +266,29 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
 
     #TODO: Load the VAE model
     if not hasattr(pipe, "vae") or pipe.vae is None:
+        print("Model does not include a VAE. Loading external VAE...")
         gconfig["status"] = "Model does not include a VAE. Loading external VAE..."
         vae = AutoencoderKL.from_pretrained(
-            "madebyollin/sdxl-vae-fp16-fix",
+            gconfig["fallback_vae_model"],
             torch_dtype=torch.float16,
         )
         pipe.vae = vae
         gconfig["status"] = "External VAE loaded."
+    else:
+        print("Model includes a VAE. Skipping external VAE loading...")
+        gconfig["status"] = "Model includes a VAE. Skipping external VAE loading..."
+    
+    if not hasattr(pipe, "tokenizer") or pipe.tokenizer is None:
+        print("Model does not include a tokenizer. Loading external tokenizer...")
+        gconfig["status"] = "Model does not include a tokenizer. Loading external tokenizer..."
+        tokenizer = CLIPTokenizer.from_pretrained(
+            gconfig["fallback_tokenizer_model"],
+        )
+        pipe.tokenizer = tokenizer
+        gconfig["status"] = "External tokenizer loaded."
+    else:
+        print("Model includes a tokenizer. Skipping external tokenizer loading...")
+        gconfig["status"] = "Model includes a tokenizer. Skipping external tokenizer loading..."
 
     gconfig["status"] = "Loading New Pipeline... (VAE loaded)"
 
@@ -290,7 +310,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name):
     gconfig["status"] = "Pipeline Loaded..."
     return pipe
 
-def latents_to_img(latents, pipe) -> Image:
+def latents_to_img(latents) -> Image:
     weights = (
         (60, -60, 25, -70),
         (60,  -5, 15, -50),
@@ -306,7 +326,7 @@ def latents_to_img(latents, pipe) -> Image:
 
 def save_latents_image(latents, pipe, image_path, seed):
     if not gconfig["enable_model_cpu_offload"]:
-        image = latents_to_img(latents, pipe)
+        image = latents_to_img(latents)
         if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
             image.save(image_path, 'PNG')
             gconfig["image_cache"][seed] = [image_path]
@@ -450,6 +470,7 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
         metadata.add_text("Height", str(height))
         metadata.add_text("CFGScale", str(cfg_scale))
         metadata.add_text("ImgInput", str(image_to_base64(load_image(img_input).convert("RGB"))) if img_input else "N/A")
+        metadata.add_text("ImgInputMetadata", json.dumps(Image.open(img_input).info) if img_input else "N/A")
         metadata.add_text("Strength", str(strength) if "img2img" in model_type else "N/A")
         metadata.add_text("Seed", str(seed))
         metadata.add_text("SamplingSteps", str(samplingSteps))
@@ -504,6 +525,7 @@ def generate():
     image_count = int(request.form.get('image_count', 4))
     custom_seed = int(request.form.get('custom_seed', gconfig["custom_seed"]))
     samplingSteps = int(request.form.get('sampling_steps', 28))
+    clip_skip = int(request.form.get('clip_skip', 0))
 
     if custom_seed != gconfig["custom_seed"]:
         image_count = 1
@@ -511,7 +533,17 @@ def generate():
     #save the temp image if provided and if not txt2img
     if img_input_img and generation_type != "txt2img":
         temp_image = Image.open(img_input_img).convert("RGB")
-        temp_image.save(f"{gconfig["generated_dir"]}temp_image.png")
+        png_info = PngImagePlugin.PngInfo()
+        for k, v in temp_image.info.items():
+            png_info.add_text(k, str(v))
+        temp_image.save(f"{gconfig['generated_dir']}temp_image.png", pnginfo=png_info)
+
+    if img_input_link and generation_type != "txt2img":
+        img_input_link = Image.open(requests.get(img_input_link, stream=True).raw)
+        png_info = PngImagePlugin.PngInfo()
+        for k, v in img_input_link.info.items():
+            png_info.add_text(k, str(v))
+        img_input_link.save(f"{gconfig['generated_dir']}temp_image.png", pnginfo=png_info)
 
     img_input = f"{gconfig["generated_dir"]}temp_image.png" if img_input_img else img_input_link
 
@@ -519,7 +551,7 @@ def generate():
     def generate_images():
         try:
             user_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_name.lstrip("./")).replace("\\", "/")
-            pipe = load_pipeline(user_model_path, model_type, generation_type, scheduler_name)
+            pipe = load_pipeline(user_model_path, model_type, generation_type, scheduler_name, clip_skip)
         except Exception:
             traceback_details = traceback.format_exc()
             gconfig["generating"] = False
