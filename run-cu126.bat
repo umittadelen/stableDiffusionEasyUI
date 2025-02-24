@@ -1,16 +1,6 @@
 @echo off
 setlocal
 
-REM Check if venv.zip exists and extract it
-if exist venv.zip (
-    echo Extracting virtual environment...
-    tar -xf venv.zip
-    if %errorlevel% neq 0 (
-        echo Failed to extract virtual environment.
-        exit /b %errorlevel%
-    )
-)
-
 REM Check if venv directory exists
 if exist venv (
     echo Activating virtual environment...
