@@ -282,7 +282,7 @@ async function getTokenCount(inElementID, outElementId) {
         body: new URLSearchParams({ text })
     });
     const result = await response.json();
-    document.getElementById(outElementId).innerHTML = result['CLIP Token Count']
+    document.getElementById(outElementId).innerHTML = `${result.CLIPTokenCount}/${result.MaxTokens}`;
 }
 
 function processImageUpdates(images, reverse) {
@@ -301,14 +301,14 @@ function processImageUpdates(images, reverse) {
         if (existingImages.has(key)) {
             const existingImg = existingImages.get(key).querySelector('img');
             if (existingImg.src !== imgData.img) {
-                existingImg.src = imgData.img;
+                existingImg.src = imgData.img+"?r=1";
             }
         } else {
             const wrapper = document.createElement('div');
             wrapper.className = 'image-wrapper';
 
             const img = document.createElement('img');
-            img.src = imgData.img;
+            img.src = imgData.img+"?r=1";
             img.loading = "lazy";
             img.onclick = () => openLink("image/" + imgData.img.split('/').pop());
 
@@ -325,7 +325,7 @@ function processImageUpdates(images, reverse) {
         if ((reverse && index === 0) || (!reverse && index === images.length - 1)) {
             const imgToUpdate = existingImages.get(key)?.querySelector('img');
             if (imgToUpdate) {
-                imgToUpdate.src = `${imgData.img}?timestamp=${Date.now()}`; // Force refresh
+                imgToUpdate.src = `${imgData.img}?timestamp=${Date.now()}&r=1`; // Force refresh
             }
         }
     });
@@ -503,6 +503,7 @@ function updateImageScales() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const dropArea = document.getElementById('drop-area');
+    const imgInput = document.getElementById('img_input_div');
 
     dropArea.addEventListener('dragover', (event) => {
         event.preventDefault();
@@ -517,10 +518,35 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         dropArea.classList.remove('dragover');
 
+        if (event.target.id !== 'img_input_div') {
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                console.log('Dropped file:', file);
+                handleImageDrop(file);
+            } else {
+                alert('Please drop an image file.');
+            }
+        }
+    });
+
+    imgInput.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropArea.classList.add('dragover');
+    });
+
+    imgInput.addEventListener('dragleave', () => {
+        dropArea.classList.remove('dragover');
+    });
+
+    imgInput.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropArea.classList.remove('dragover');
+
         const file = event.dataTransfer.files[0];
         if (file && file.type.startsWith('image/')) {
-            console.log('Dropped file:', file);
-            handleImageDrop(file);
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            imgInput.querySelector('#img_input_img').files = dataTransfer.files;
         } else {
             alert('Please drop an image file.');
         }

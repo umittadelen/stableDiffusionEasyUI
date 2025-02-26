@@ -68,6 +68,7 @@ gconfig = {
     "fallback_vae_model": "madebyollin/sdxl-vae-fp16-fix",
     "default_clip_model": "openai/clip-vit-base-patch16",
     "fallback_tokenizer_model": "openai/clip-vit-base-patch16",
+    "preview_size": "100",
     "show_latents": False,
     "load_previous_data": True,
     "reset_on_new_request": False,
@@ -110,7 +111,7 @@ def login_to_huggingface():
     else:
         login()
 
-login_to_huggingface()
+#login_to_huggingface()
 
 if not isDirectory(gconfig["generated_dir"]):
     os.mkdir(gconfig["generated_dir"])
@@ -511,7 +512,7 @@ def generate():
     model_name = request.form.get('model', 'https://huggingface.co/cagliostrolab/animagine-xl-3.1/blob/main/animagine-xl-3.1.safetensors')
     model_type = request.form.get('model_type', 'SDXL')
     scheduler_name = request.form.get('scheduler', 'Euler a')
-    prompts = request.form.get('prompt', '1girl, cute, kawaii, full body')
+    prompts = request.form.get('prompt', '')
     negative_prompt = request.form.get('negative_prompt', 'default_negative_prompt')
     width = int(request.form.get('width', 832))
     height = int(request.form.get('height', 1216))
@@ -546,6 +547,11 @@ def generate():
         img_input_link.save(f"{gconfig['generated_dir']}temp_image.png", pnginfo=png_info)
 
     img_input = f"{gconfig["generated_dir"]}temp_image.png" if img_input_img else img_input_link
+
+    if prompts == "":
+        gconfig["status"] = "No Prompt Provided"
+        gconfig["generating"] = False
+        return jsonify(status='No prompt provided'), 400
 
     #TODO: Function to generate images
     def generate_images():
@@ -703,13 +709,37 @@ def status():
         images=images,
         imgprogress=gconfig["status"],
         allpercentage=gconfig["progress"],
-        remainingimages=gconfig["remainingImages"]-1 if gconfig["remainingImages"] > 0 else gconfig["remainingImages"]
+        remainingimages=gconfig["remainingImages"] if gconfig["remainingImages"] > 0 else gconfig["remainingImages"]
     )
 
 @app.route('/generated/<filename>', methods=['GET'])
-def serve_temp_image(filename):
+def serve_image(filename):
     image_path = os.path.join(gconfig["generated_dir"], filename)
-    return send_file(image_path, mimetype='image/png')
+    resize_image = request.args.get('r') == '1' and gconfig["image_size"] != "100"
+
+    if not os.path.exists(image_path):
+        with open("./static/json/placeholders.json", "r") as f:
+            placeholders = json.load(f)
+        placeholder_text = random.choice(placeholders)
+        return jsonify(status='Image not found', image=placeholder_text)
+
+    if resize_image:
+        image_size_percentage = int(gconfig["image_size"])
+        image = Image.open(image_path)
+
+        # Calculate new dimensions while keeping the aspect ratio
+        width, height = image.size
+        new_width = int(width * (image_size_percentage / 100))
+        new_height = int(height * (image_size_percentage / 100))
+        image = image.resize((new_width, new_height))
+
+        img_io = BytesIO()
+        image.save(img_io, 'PNG')
+        img_io.seek(0)
+
+        return send_file(img_io, mimetype='image/png')
+    else:
+        return send_file(image_path, mimetype='image/png')
 
 @app.route('/image/<filename>', methods=['GET'])
 def image(filename):
@@ -746,7 +776,7 @@ def index():
     return render_template('index.html')
 
 def get_clip_token_info(text):
-    clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+    clip_tokenizer = CLIPTokenizer.from_pretrained(gconfig["default_clip_model"] if not gconfig["use_long_clip"] else gconfig["long_clip_model"])
     # Get tokens and their IDs
     clip_tokens = clip_tokenizer.encode(text, add_special_tokens=True)
     
@@ -762,7 +792,8 @@ def get_clip_token_info(text):
     
     # Return the dictionary
     return {
-        "CLIP Token Count": len(clip_tokens),
+        "CLIPTokenCount": len(clip_tokens),
+        "MaxTokens": clip_tokenizer.model_max_length,
         "Tokens": clip_decoded
     }
 

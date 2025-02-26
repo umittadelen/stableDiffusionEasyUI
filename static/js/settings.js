@@ -23,7 +23,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById("long-clip-model").value = data.long_clip_model || "zer0int/LongCLIP-GmP-ViT-L-14";
                 document.getElementById("fallback-vae-model").value = data.fallback_vae_model || "clip-vae";
                 document.getElementById("default-clip-model").value = data.default_clip_model || "clip-vit-l-14-clip";
-                document.getElementById("fallback_tokenizer_model").value = data.fallback_tokenizer_model || "openai/clip-vit-base-patch16";
+                document.getElementById("fallback-tokenizer-model").value = data.fallback_tokenizer_model || "openai/clip-vit-base-patch16";
+                document.getElementById("image-size").value = data.image_size || "100";
                 document.getElementById("show-latents").value = data.show_latents ? "True" : "False";
                 document.getElementById("load-previous-data").value = data.load_previous_data ? "True" : "False";
                 document.getElementById("reset-on-new-request").value = data.reset_on_new_request ? "True" : "False";
@@ -63,7 +64,8 @@ function saveSettings(event) {
     settings.long_clip_model = document.getElementById("long-clip-model").value;
     settings.fallback_vae_model = document.getElementById("fallback-vae-model").value;
     settings.default_clip_model = document.getElementById("default-clip-model").value;
-    settings.fallback_tokenizer_model = document.getElementById("fallback_tokenizer_model").value;
+    settings.fallback_tokenizer_model = document.getElementById("fallback-tokenizer-model").value;
+    settings.image_size = document.getElementById("image-size").value;
     settings.show_latents = document.getElementById("show-latents").value === "True";
     settings.load_previous_data = document.getElementById("load-previous-data").value === "True";
     settings.reset_on_new_request = document.getElementById("reset-on-new-request").value === "True";

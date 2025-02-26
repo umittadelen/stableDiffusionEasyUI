@@ -33,43 +33,71 @@
     </style>
 </head>
 <body>
-    <div id="all">
+    <p id="404a" style="color:chartreuse;font-size:2em;font-weight:bold;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">Loading Please Wait...</p>
+    <div id="all" style="display: none;">
         <div class="form">
             <div class="img-container">
-                <a id="image-link" href="{{ url_for('serve_temp_image', filename=image) }}" download>
-                    <img id="image" src="{{ url_for('serve_temp_image', filename=image) }}" alt="{{ image }}">
+                <a id="image-link" href="{{ url_for('serve_image', filename=image) }}" download>
+                    <img id="image" src="{{ url_for('serve_image', filename=image) }}" alt="{{ image }}">
                 </a>
             </div>
-            
             <p>Click on the image to download</p>
-
-            <div class="btn-container">
+            <div class="btn-container" id="btn-container">
                 <button class="metadata" href="javascript:void(0);" onclick="openMetadata()">Metadata</button>
             </div>
         </div>
     </div>
     <script>
         function openMetadata(){
-            window.location.href = `${window.location.protocol}//${window.location.host}{{ url_for('metadata') }}?url=${window.location.protocol}//${window.location.host}{{ url_for('serve_temp_image', filename=image) }}`;
+            window.location.href = `${window.location.protocol}//${window.location.host}{{ url_for('metadata') }}?url=${window.location.protocol}//${window.location.host}{{ url_for('serve_image', filename=image) }}`;
         }
+
+        let intervalId = setInterval(updateImage, 2500);
+
+        alldiv.style.display = 'none';
 
         function updateImage() {
             const image = document.getElementById('image');
             const imageLink = document.getElementById('image-link');
+            const errora = document.getElementById('404a');
             const timestamp = new Date().getTime();
-            const newSrc = `{{ url_for('serve_temp_image', filename=image) }}?t=${timestamp}`;
+            const alldiv = document.getElementById('all');
 
-            const tempImage = new Image();
-            tempImage.src = newSrc;
-            tempImage.onload = function() {
-                setTimeout(() => {
-                    image.src = newSrc;
-                    imageLink.href = newSrc;
-                }, 500);
-            };
+            fetch(`{{ url_for('serve_image', filename=image) }}?t=` + timestamp)
+            .then(response => {
+                if (response.headers.get('content-type').includes('application/json')) {
+                    return response.json();
+                } else {
+                    return response.blob();
+                }
+            })
+            .then(data => {
+                if (data instanceof Blob) {
+                    errora.style.display = 'none';
+                    const newSrc = URL.createObjectURL(data);
+                    const tempImage = new Image();
+                    tempImage.src = newSrc;
+                    tempImage.onload = function() {
+                        setTimeout(() => {
+                            image.src = newSrc;
+                            imageLink.href = newSrc;
+                        }, 500);
+                    };
+                    alldiv.style.display = 'block';
+                } else if (data.status === 'Image not found') {
+                    const newSrc = data.image;
+                    document.getElementById('all').remove();
+                    errora.innerHTML = newSrc;
+                    errora.style.color = 'red';
+                    
+                    clearInterval(intervalId);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching image:', error);
+            });
         }
 
-        setInterval(updateImage, 2500);
     </script>
     <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
 </body>
