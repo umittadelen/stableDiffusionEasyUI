@@ -2,9 +2,11 @@ const existingImages = new Map(); // Store existing images with their seeds as k
 let isGeneratingNewImages = false;
 let pendingUpdates = false;
 let isCleared = false;
+let updateInBg = true;
+
 const customConfirm = new CustomConfirm();
 
-function loadFormData() {
+async function loadFormData() {
     fetch('/load_form_data')
     .then(response => response.json())
     .then(data => {
@@ -84,12 +86,6 @@ fetch("/scan_model_configs")
     loadJsonAndPopulateSelect('/static/json/models.json', 'model', populateModels);
     console.error("Error:", error);
 })
-
-loadJsonAndPopulateSelect('/static/json/examplePrompts.json', 'example_prompt', populateExamplePrompts);
-loadJsonAndPopulateSelect('/static/json/dimensions.json', 'example_size', populateExampleSizes);
-loadJsonAndPopulateSelect('/static/json/schedulers.json', 'scheduler', populateSchedulers);
-
-loadFormData();
 
 function submitButtonOnClick(event) {
     event.preventDefault();
@@ -174,13 +170,18 @@ async function resetFormButtonOnClick(event) {
 };
 
 setInterval(() => {
-    if (document.visibilityState === 'visible' && !pendingUpdates && !isCleared) {
+    if (updateInBg || (document.visibilityState === 'visible' && !pendingUpdates && !isCleared)) {
+        if (!updateInBg && !(document.visibilityState === 'visible')) {
+            console.log('Background updates are disabled');
+            return;
+        }
         pendingUpdates = true;
         console.log('Fetching status...');
 
         fetch('/status', { cache: 'no-store' })
             .then((response) => response.json())
             .then((data) => {
+                updateInBg = data.updateInBg;
                 document.getElementById('all').style.display = 'flex';
 
                 updateProgressBars(data);
@@ -192,6 +193,14 @@ setInterval(() => {
                 if (data.images.length < existingImages.size) {
                     existingImages.clear();
                     document.getElementById('images').innerHTML = '';
+                }
+
+                if (updateInBg) {
+                    if (Number.isInteger(data.imgprogress) && Number.isInteger(data.allpercentage)) {
+                        document.title = `EasyUI [${data.imgprogress}%] [${data.allpercentage}%]`;
+                    } else {
+                        document.title = `EasyUI [Idle]`;
+                    }
                 }
             })
             .catch(() => {
@@ -206,7 +215,6 @@ setInterval(() => {
 }, 2500);
 
 document.addEventListener('contextmenu', function (event) {
-    // block <div id="status" oncontextmenu="toggleStatus()"></div> an dchilds
     if (event.target.closest('#status')) {
         event.preventDefault();
         console.log('Context menu prevented');
@@ -403,18 +411,20 @@ function savePrompt() {
 }
 
 document.addEventListener('visibilitychange', function () {
-    const state =
-        document.visibilityState === 'visible'
-            ? 'Vis'
-            : document.visibilityState === 'hidden'
-            ? 'Hid'
-            : document.visibilityState === 'prerender'
-            ? 'Pre'
-            : 'Unk';
-    document.title = `Image Generator (${state})`;
-    if (state === 'Vis') {
-        existingImages.clear();
-        document.getElementById('images').innerHTML = '';
+    if (!updateInBg) {
+        const state =
+            document.visibilityState === 'visible'
+                ? 'Vis'
+                : document.visibilityState === 'hidden'
+                ? 'Hid'
+                : document.visibilityState === 'prerender'
+                ? 'Pre'
+                : 'Unk';
+        document.title = `EasyUI (${state})`;
+        if (state === 'Vis') {
+            existingImages.clear();
+            document.getElementById('images').innerHTML = '';
+        }
     }
 });
 
@@ -501,7 +511,18 @@ function updateImageScales() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    document.title = 'EasyUI';
+
+    // Load data from JSON files --------------------->
+    await loadJsonAndPopulateSelect('/static/json/examplePrompts.json', 'example_prompt', populateExamplePrompts);
+    await loadJsonAndPopulateSelect('/static/json/dimensions.json', 'example_size', populateExampleSizes);
+    await loadJsonAndPopulateSelect('/static/json/schedulers.json', 'scheduler', populateSchedulers);
+
+    await loadFormData();
+
+    // Drag and drop --------------------------------->
+
     const dropArea = document.getElementById('drop-area');
     const imgInput = document.getElementById('img_input_div');
 
@@ -550,6 +571,56 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             alert('Please drop an image file.');
         }
+    });
+
+    // Custom tooltip --------------------------------->
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'custom-tooltip';
+    document.body.appendChild(tooltip);
+
+    function showTooltip(event) {
+        const title = this.getAttribute('data-title');
+        tooltip.innerHTML = title;
+        tooltip.style.display = 'block';
+        tooltip.style.left = event.pageX + 'px';
+        tooltip.style.top = event.pageY + 'px';
+    }
+
+    function hideTooltip() {
+        tooltip.style.display = 'none';
+    }
+
+    document.querySelectorAll('[title]').forEach(element => {
+        element.addEventListener('mouseenter', function (event) {
+            const title = this.getAttribute('title');
+            this.setAttribute('data-title', title);
+            this.removeAttribute('title');
+            showTooltip.call(this, event);
+        });
+
+        element.addEventListener('mousemove', showTooltip);
+
+        element.addEventListener('mouseleave', function () {
+            this.setAttribute('title', this.getAttribute('data-title'));
+            hideTooltip();
+        });
+        // Mobile support
+        element.addEventListener('touchstart', function (event) {
+            const title = this.getAttribute('title');
+            this.setAttribute('data-title', title);
+            this.removeAttribute('title');
+            showTooltip.call(this, event.touches[0]);
+        });
+
+        element.addEventListener('touchmove', function (event) {
+            showTooltip.call(this, event.touches[0]);
+        });
+
+        element.addEventListener('touchend', function () {
+            this.setAttribute('title', this.getAttribute('data-title'));
+            hideTooltip();
+        });
     });
 });
 

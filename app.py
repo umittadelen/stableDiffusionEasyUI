@@ -45,6 +45,16 @@ def isFile(a):
 def resize_image(image, width, height):
     return image.resize((width, height), resample=Image.BICUBIC)
 
+def check_online():
+    try:
+        # Try to connect to a known server
+        response = requests.get("https://www.google.com", timeout=5)
+        if response.status_code == 200:
+            return True  # Computer is online
+    except requests.ConnectionError:
+        pass  # Handle if there's no internet connection
+    return False  # Computer is offline
+
 gconfig = {
     "generation_stopped":False,
     "generating": False,
@@ -64,6 +74,7 @@ gconfig = {
     "enable_model_cpu_offload": True,
     "enable_sequential_cpu_offload": False,
     "use_long_clip": True,
+    "update_page_in_background": True,
     "long_clip_model": "zer0int/LongCLIP-GmP-ViT-L-14",
     "fallback_vae_model": "madebyollin/sdxl-vae-fp16-fix",
     "default_clip_model": "openai/clip-vit-base-patch16",
@@ -111,7 +122,8 @@ def login_to_huggingface():
     else:
         login()
 
-#login_to_huggingface()
+if check_online():
+    login_to_huggingface()
 
 if not isDirectory(gconfig["generated_dir"]):
     os.mkdir(gconfig["generated_dir"])
@@ -182,7 +194,6 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
             kwargs["clip_skip"] = 2
         else:
             kwargs["clip_skip"] = clip_skip
-    print(f"using clip_skip: {clip_skip}")
 
     if "img2img" in generation_type:
         pipeline = (
@@ -709,7 +720,8 @@ def status():
         images=images,
         imgprogress=gconfig["status"],
         allpercentage=gconfig["progress"],
-        remainingimages=gconfig["remainingImages"] if gconfig["remainingImages"] > 0 else gconfig["remainingImages"]
+        remainingimages=gconfig["remainingImages"] if gconfig["remainingImages"] > 0 else gconfig["remainingImages"],
+        updateInBg=gconfig["update_page_in_background"]
     )
 
 @app.route('/generated/<filename>', methods=['GET'])
@@ -758,11 +770,17 @@ def clear_images():
     for file in files:
         try:
             os.remove(file)
+        except PermissionError:
+            traceback_details = traceback.format_exc()
+            gconfig["progress"] = 0
+            gconfig["status"] = f"Error Deleteing File..."
+            print(f"Error Deleteing File... {traceback_details}")
         except Exception:
             traceback_details = traceback.format_exc()
             gconfig["progress"] = 0
-            gconfig["status"] = f"Error Deleteing File... {traceback_details}"
-            print(f"Error Deleteing File... {traceback_details}")
+            gconfig["status"] = f"Error..."
+            print(f"Error... {traceback_details}")
+        
     return jsonify(status='Images cleared')
 
 @app.route('/restart', methods=['POST'])
