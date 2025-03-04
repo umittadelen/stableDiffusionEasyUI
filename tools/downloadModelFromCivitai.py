@@ -27,8 +27,15 @@ def getModeldata(model_id, version_id):
 
 def shortenModelData(modelData):
     try:
-        model_filename = (next((v.get("name", "") for v in modelData.get("files", []) if str(modelData.get("id", "")) in v.get("downloadUrl", "") and v.get("type", "Model") == "Model"), "")
-                       if next((v.get("name", "") for v in modelData.get("files", []) if str(modelData.get("id", "")) in v.get("downloadUrl", "") and v.get("type", "Model") == "Model"), "") else "")
+        open("output.json", "w").write(json.dumps(modelData, indent=4))
+        model_filename = next(
+            (v.get("name", "") for v in modelData.get("files", [])
+            if str(modelData.get("id", "")) in v.get("downloadUrl", "")
+            and v.get("type", "Model") == "Model"
+            and v.get("metadata", {}).get("format", "") == "SafeTensor"), 
+            ""
+        )
+
         tmp = {
             "type": modelData.get("baseModel", "SDXL"),
             "disabled": False,

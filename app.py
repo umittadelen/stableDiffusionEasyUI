@@ -67,6 +67,7 @@ gconfig = {
     "image_cache": {},
     "downloading": False,
     "generation_done": False,
+    "dtype": torch.float16,
 
     "theme": {"tone_1": "240, 240, 240","tone_2": "240, 218, 218","tone_3": "240, 163, 163"},
     "enable_attention_slicing": True,
@@ -81,6 +82,7 @@ gconfig = {
     "fallback_tokenizer_model": "openai/clip-vit-base-patch16",
     "preview_size": "100",
     "show_latents": False,
+    "show_model_preview": True,
     "load_previous_data": True,
     "reset_on_new_request": False,
     "reverse_image_order": False,
@@ -92,6 +94,7 @@ gconfig = {
 
     "SDXL":[
         "SDXL",
+        "SDXL 1.0",
         "SDXL Lightning",
         "SDXL Hyper",
         "Illustrious",
@@ -123,7 +126,10 @@ def login_to_huggingface():
         login()
 
 if check_online():
+    print("Computer is online")
     login_to_huggingface()
+else:
+    print("Computer is offline")
 
 if not isDirectory(gconfig["generated_dir"]):
     os.mkdir(gconfig["generated_dir"])
@@ -167,20 +173,20 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
 
     if "controlnet" in generation_type:
         if "canny" in generation_type and model_type in gconfig["SDXL"]:
-            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torch.float16)
+            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", torch_dtype=gconfig["dtype"])
         if "canny" in generation_type and model_type in gconfig["SD 1.5"]:
-            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", torch_dtype=torch.float16)
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", torch_dtype=gconfig["dtype"])
 
         if "depth" in generation_type and model_type in gconfig["SDXL"]:
-            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-depth-sdxl-1.0", torch_dtype=torch.float16)
+            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-depth-sdxl-1.0", torch_dtype=gconfig["dtype"])
         if "depth" in generation_type and model_type in gconfig["SD 1.5"]:
-            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", torch_dtype=torch.float16)
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", torch_dtype=gconfig["dtype"])
 
         if "normal" in generation_type and model_type in gconfig["SDXL"]:
-            #!controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=torch.float16)
+            #!controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=gconfig["dtype"])
             raise Exception("Normal Map is not supported for SDXL")
         if "normal" in generation_type and model_type in gconfig["SD 1.5"]:
-            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=torch.float16)
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=gconfig["dtype"])
 
         kwargs["controlnet"] = controlnet
 
@@ -253,7 +259,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
 
     pipe = pipeline(
         model_name,
-        torch_dtype=torch.float16,
+        torch_dtype=gconfig["dtype"],
         use_safetensors=True,
         add_watermarker=False,
         use_auth_token=gconfig["HF_TOKEN"],
@@ -264,13 +270,13 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
     gconfig["status"] = "Loading New Pipeline... (loading VAE)"
     if gconfig["use_long_clip"]:
         print(gconfig["long_clip_model"])
-        clip_model = CLIPModel.from_pretrained(gconfig["long_clip_model"], torch_dtype=torch.float16)
-        clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"])
+        clip_model = CLIPModel.from_pretrained(gconfig["long_clip_model"], torch_dtype=gconfig["dtype"])
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"], torch_dtype=gconfig["dtype"])
         print("max token limit:", clip_processor.tokenizer.model_max_length)
     else:
         print(gconfig["default_clip_model"])
-        clip_model = CLIPModel.from_pretrained(gconfig["default_clip_model"], torch_dtype=torch.float16)
-        clip_processor = CLIPProcessor.from_pretrained(gconfig["default_clip_model"])
+        clip_model = CLIPModel.from_pretrained(gconfig["default_clip_model"], torch_dtype=gconfig["dtype"])
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["default_clip_model"], torch_dtype=gconfig["dtype"])
         print("max token limit:", clip_processor.tokenizer.model_max_length)
 
     pipe.clip_model = clip_model
@@ -282,7 +288,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
         gconfig["status"] = "Model does not include a VAE. Loading external VAE..."
         vae = AutoencoderKL.from_pretrained(
             gconfig["fallback_vae_model"],
-            torch_dtype=torch.float16,
+            torch_dtype=gconfig["dtype"],
         )
         pipe.vae = vae
         gconfig["status"] = "External VAE loaded."
@@ -320,6 +326,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
         pipe.enable_sequential_cpu_offload()
 
     gconfig["status"] = "Pipeline Loaded..."
+    print("Pipeline Loaded...")
     return pipe
 
 def latents_to_img(latents) -> Image:
@@ -351,8 +358,10 @@ def image_to_base64(img, temp_file=f"{gconfig["generated_dir"]}temp_base64_image
     os.remove(temp_file)
     return "data:image/png;base64," + img_base64
 
-def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
-    #TODO: Generate image with progress tracking
+def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt:str, negative_prompt:str, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
+    
+    prompt = prompt.rstrip(",") + "," + style_prompt.lstrip(",") if prompt and style_prompt else prompt + style_prompt
+    
     current_time = time.time()
     gconfig["generation_done"] = False
 
@@ -469,13 +478,22 @@ def generateImage(pipe, model, prompt, original_prompt, negative_prompt, seed, w
             kwargs["prompt"] = prompt
             kwargs["negative_prompt"] = negative_prompt
 
-        with torch.no_grad():
-            image = pipe(
-                **kwargs
-            ).images[0]
+        try:
+            with torch.no_grad():
+                image = pipe(
+                    **kwargs
+                ).images[0]
+        except Exception:
+            traceback_details = traceback.format_exc()
+            gconfig["status"] = f"Generation Stopped with reason:<br>{traceback_details}"
+            gconfig["generation_stopped"] = True
+            gconfig["generating"] = False
+            print(f"Generation Stopped with reason:\n{traceback_details}")
+            return False
 
         metadata = PngImagePlugin.PngInfo()
         metadata.add_text("Prompt", prompt)
+        metadata.add_text("StylePrompt", style_prompt)
         metadata.add_text("OriginalPrompt", original_prompt)
         metadata.add_text("NegativePrompt", negative_prompt)
         metadata.add_text("Width", str(width))
@@ -523,7 +541,8 @@ def generate():
     model_name = request.form.get('model', 'https://huggingface.co/cagliostrolab/animagine-xl-3.1/blob/main/animagine-xl-3.1.safetensors')
     model_type = request.form.get('model_type', 'SDXL')
     scheduler_name = request.form.get('scheduler', 'Euler a')
-    prompts = request.form.get('prompt', '')
+    prompts = request.form.get('prompt', '').strip()
+    style_prompt = request.form.get('style', '').strip()
     negative_prompt = request.form.get('negative_prompt', 'default_negative_prompt')
     width = int(request.form.get('width', 832))
     height = int(request.form.get('height', 1216))
@@ -585,7 +604,11 @@ def generate():
                     # Handle the case when the separator is empty or missing
                     prompt_list = [prompts.strip()]
 
-            for prompt in prompt_list:
+            for prompt_index, prompt in enumerate(prompt_list):
+
+                if prompt == "":
+                    raise Exception("No Prompt Provided")
+
                 for i in range(image_count):
                     if gconfig["generation_stopped"]:
                         gconfig["progress"] = 0
@@ -595,7 +618,7 @@ def generate():
                         raise Exception("Generation Stopped")
 
                     #TODO: Update the progress message
-                    gconfig["remainingImages"] = (image_count * len(prompt_list)) - i
+                    gconfig["remainingImages"] = (image_count * len(prompt_list)) - (prompt_index * image_count + i)
                     gconfig["status"] = f"Generating {gconfig["remainingImages"] * len(prompt_list)} Images..."
                     gconfig["progress"] = 0
 
@@ -605,11 +628,12 @@ def generate():
                     else:
                         seed = custom_seed
 
-                    image_path = generateImage(pipe, model_name, prompt, prompts, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
+                    image_path = generateImage(pipe, model_name, prompt, prompts, style_prompt, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
 
                     #TODO: Store the generated image path
                     if image_path:
                         gconfig["image_cache"][seed] = [image_path]
+
             gconfig["status"] = "Generation Complete"
         except Exception:
             traceback_details = traceback.format_exc()
@@ -716,12 +740,8 @@ def status():
         } for seed, path in gconfig["image_cache"].items()]
 
     return jsonify(
-        images_reverse=gconfig["reverse_image_order"],
         images=images,
-        imgprogress=gconfig["status"],
-        allpercentage=gconfig["progress"],
-        remainingimages=gconfig["remainingImages"] if gconfig["remainingImages"] > 0 else gconfig["remainingImages"],
-        updateInBg=gconfig["update_page_in_background"]
+        gconfig=gconfig
     )
 
 @app.route('/generated/<filename>', methods=['GET'])

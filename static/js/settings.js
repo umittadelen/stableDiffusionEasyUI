@@ -26,12 +26,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById("fallback-tokenizer-model").value = data.fallback_tokenizer_model || "openai/clip-vit-base-patch16";
                 document.getElementById("image-size").value = data.image_size || "100";
                 document.getElementById("update-page-in-background").value = data.update_page_in_background ? "True" : "False";
+                document.getElementById("show-model-preview").value = data.show_model_preview ? "True" : "False";
                 document.getElementById("show-latents").value = data.show_latents ? "True" : "False";
                 document.getElementById("load-previous-data").value = data.load_previous_data ? "True" : "False";
                 document.getElementById("reset-on-new-request").value = data.reset_on_new_request ? "True" : "False";
                 document.getElementById("reverse-image-order").value = data.reverse_image_order ? "True" : "False";
                 document.getElementById("use-multi-prompt").value = data.use_multi_prompt ? "True" : "False";
-                document.getElementById("multi-prompt-separator").value = data.multi_prompt_separator || "§";
+                document.getElementById("multi-prompt-separator").value = JSON.stringify(data.multi_prompt_separator).slice(1, -1) || "§";
                 document.getElementById("host").value = data.host || "localhost";
                 document.getElementById("port").value = data.port || "8080";
             }
@@ -68,6 +69,7 @@ function saveSettings(event) {
     settings.fallback_tokenizer_model = document.getElementById("fallback-tokenizer-model").value;
     settings.image_size = document.getElementById("image-size").value;
     settings.update_page_in_background = document.getElementById("update-page-in-background").value === "True";
+    settings.show_model_preview = document.getElementById("show-model-preview").value === "True";
     settings.show_latents = document.getElementById("show-latents").value === "True";
     settings.load_previous_data = document.getElementById("load-previous-data").value === "True";
     settings.reset_on_new_request = document.getElementById("reset-on-new-request").value === "True";

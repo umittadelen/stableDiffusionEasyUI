@@ -2,7 +2,7 @@ const existingImages = new Map(); // Store existing images with their seeds as k
 let isGeneratingNewImages = false;
 let pendingUpdates = false;
 let isCleared = false;
-let updateInBg = true;
+let gconfig = {};
 
 const customConfirm = new CustomConfirm();
 
@@ -73,6 +73,15 @@ function populateSchedulers(data, select) {
         const option = document.createElement('option');
         option.value = scheduler;
         option.textContent = scheduler;
+        select.appendChild(option);
+    });
+}
+
+function populateStyles(data, select) {
+    Object.entries(data).forEach(([name, prompt]) => {
+        const option = document.createElement('option');
+        option.value = prompt;
+        option.textContent = name;
         select.appendChild(option);
     });
 }
@@ -169,50 +178,96 @@ async function resetFormButtonOnClick(event) {
     }
 };
 
-setInterval(() => {
-    if (updateInBg || (document.visibilityState === 'visible' && !pendingUpdates && !isCleared)) {
-        if (!updateInBg && !(document.visibilityState === 'visible')) {
-            console.log('Background updates are disabled');
+let updatepageIntervalId = setInterval(updatePage, 2500);
+
+function updatePage() {
+    if (gconfig.update_page_in_background || (document.visibilityState === 'visible' && !pendingUpdates && !isCleared)) {
+        if (!gconfig.update_page_in_background && !(document.visibilityState === 'visible')) {
             return;
         }
         pendingUpdates = true;
-        console.log('Fetching status...');
 
         fetch('/status', { cache: 'no-store' })
-            .then((response) => response.json())
-            .then((data) => {
-                updateInBg = data.updateInBg;
-                document.getElementById('all').style.display = 'flex';
+        .then((response) => response.json())
+        .then((data) => {
+            gconfig = data.gconfig;
+            document.getElementById('all').style.display = 'flex';
 
-                updateProgressBars(data);
+            updateProgressBars(data);
 
-                processImageUpdates(data.images, data.images_reverse || false);
+            processImageUpdates(data.images, data.gconfig.reverse_image_order || false);
 
-                updateImageScales();
+            updateImageScales();
 
-                if (data.images.length < existingImages.size) {
-                    existingImages.clear();
-                    document.getElementById('images').innerHTML = '';
+            updateModelPreview();
+
+            if (data.images.length < existingImages.size) {
+                existingImages.clear();
+                document.getElementById('images').innerHTML = '';
+            }
+
+            if (gconfig.update_page_in_background) {
+                if (Number.isInteger(data.gconfig.status) && Number.isInteger(data.gconfig.progress)) {
+                    document.title = `EasyUI [${data.gconfig.status}%] [${data.gconfig.progress}%] [${data.gconfig.remainingImages}]`;
+                } else {
+                    document.title = `EasyUI [Idle]`;
                 }
-
-                if (updateInBg) {
-                    if (Number.isInteger(data.imgprogress) && Number.isInteger(data.allpercentage)) {
-                        document.title = `EasyUI [${data.imgprogress}%] [${data.allpercentage}%]`;
-                    } else {
-                        document.title = `EasyUI [Idle]`;
-                    }
-                }
-            })
-            .catch(() => {
-                updateProgressBars({}, "Error fetching status");
-                document.getElementById('all').style.display = 'none';
-            })
-            .finally(() => {
-                pendingUpdates = false;
-                isCleared = false;
-            });
+            }
+        })
+        .catch(() => {
+            updateProgressBars({}, "Error fetching status");
+            document.getElementById('all').style.display = 'none';
+        })
+        .finally(() => {
+            pendingUpdates = false;
+            isCleared = false;
+        });
     }
-}, 2500);
+}
+
+function updateModelPreview() {
+    const select = document.getElementById("model");
+    const preview = document.getElementById("model-preview");
+
+    const showPreview = (event) => {
+        const imageUrl = select.options[select.selectedIndex].dataset.src;
+        if (imageUrl) {
+            preview.src = imageUrl;
+            preview.style.display = "block";
+            preview.style.height = "50vh";
+            preview.style.maxWidth = "70%";
+            preview.style.width = "auto";
+            preview.style.objectFit = "contain";
+            preview.style.position = "absolute";
+            updatePosition(event);
+        }
+    };
+
+    const updatePosition = (event) => {
+        const { pageX: x, pageY: y } = event.touches ? event.touches[0] : event;
+        preview.style.left = `${x - preview.getBoundingClientRect().width / 2}px`;
+        preview.style.top = `${y + 10}px`;
+    };
+
+    const hidePreview = () => preview.style.display = "none";
+
+    // For both mouse and touch events
+    if (gconfig.show_model_preview) {
+        select.addEventListener("mouseover", showPreview);
+        select.addEventListener("mousemove", updatePosition);
+        select.addEventListener("mouseleave", hidePreview);
+        select.addEventListener("touchstart", showPreview);
+        select.addEventListener("touchmove", updatePosition);
+        select.addEventListener("touchend", hidePreview);
+    } else {
+        select.removeEventListener("mouseover", showPreview);
+        select.removeEventListener("mousemove", updatePosition);
+        select.removeEventListener("mouseleave", hidePreview);
+        select.removeEventListener("touchstart", showPreview);
+        select.removeEventListener("touchmove", updatePosition);
+        select.removeEventListener("touchend", hidePreview);
+    }
+}
 
 document.addEventListener('contextmenu', function (event) {
     if (event.target.closest('#status')) {
@@ -255,25 +310,25 @@ function updateProgressBars(data, error = "") {
         return;
     }
 
-    if (Number.isInteger(data.imgprogress)) {
-        setProgress(dynamicProgressBar, data.imgprogress);
-        progressText.innerHTML = `Progress: ${data.imgprogress}% Remaining: ${data.remainingimages}`;
+    if (Number.isInteger(data.gconfig.status)) {
+        setProgress(dynamicProgressBar, data.gconfig.status);
+        progressText.innerHTML = `Progress: ${data.gconfig.status}% Remaining: ${data.gconfig.remainingImages}`;
     }
-    else if (data.imgprogress.endsWith("Generation Stopped\n")) {
+    else if (data.gconfig.status.endsWith("Generation Stopped\n")) {
         resetProgress();
         progressText.innerHTML = 'Generation Stopped';
     }
-    else if (typeof data.imgprogress === 'string') {
+    else if (typeof data.gconfig.status === 'string') {
         resetProgress();
-        progressText.innerHTML = data.imgprogress.slice(-200).replace(/\n/g, '<br>');
+        progressText.innerHTML = data.gconfig.status.slice(-200).replace(/\n/g, '<br>');
     }
-    else if (data.imgprogress.trim() === "") {
+    else if (data.gconfig.status.trim() === "") {
         resetProgress();
         progressText.innerHTML = 'Status: idle';
     }
 
-    if (Number.isInteger(data.allpercentage)) {
-        setProgress(alldynamicProgressBar, data.allpercentage);
+    if (Number.isInteger(data.gconfig.progress)) {
+        setProgress(alldynamicProgressBar, data.gconfig.progress);
     } else {
         setProgress(alldynamicProgressBar, 0);
     }
@@ -411,7 +466,7 @@ function savePrompt() {
 }
 
 document.addEventListener('visibilitychange', function () {
-    if (!updateInBg) {
+    if (!gconfig.update_page_in_background) {
         const state =
             document.visibilityState === 'visible'
                 ? 'Vis'
@@ -512,12 +567,14 @@ function updateImageScales() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    updatePage();
     document.title = 'EasyUI';
 
     // Load data from JSON files --------------------->
     await loadJsonAndPopulateSelect('/static/json/examplePrompts.json', 'example_prompt', populateExamplePrompts);
     await loadJsonAndPopulateSelect('/static/json/dimensions.json', 'example_size', populateExampleSizes);
     await loadJsonAndPopulateSelect('/static/json/schedulers.json', 'scheduler', populateSchedulers);
+    await loadJsonAndPopulateSelect('/static/json/styleprompts.json', 'example_style', populateStyles);
 
     await loadFormData();
 
@@ -690,48 +747,22 @@ function updateFormFields(metadata) {
     console.log('Form fields updated');
 }
 
-const select = document.getElementById("model");
-const preview = document.getElementById("model-preview");
-
-const showPreview = (event) => {
-    const imageUrl = select.options[select.selectedIndex].dataset.src;
-    if (imageUrl) {
-        preview.src = imageUrl;
-        preview.style.display = "block";
-        preview.style.height = "50vh";
-        preview.style.maxWidth = "70%";
-        preview.style.width = "auto";
-        preview.style.objectFit = "contain";
-        preview.style.position = "absolute";
-        updatePosition(event);
-    }
-};
-
-const updatePosition = (event) => {
-    const { pageX: x, pageY: y } = event.touches ? event.touches[0] : event;
-    preview.style.left = `${x - preview.getBoundingClientRect().width / 2}px`;
-    preview.style.top = `${y + 10}px`;
-};
-
-const hidePreview = () => preview.style.display = "none";
-
-// For both mouse and touch events
-select.addEventListener("mouseover", showPreview);
-select.addEventListener("mousemove", updatePosition);
-select.addEventListener("mouseleave", hidePreview);
-select.addEventListener("touchstart", showPreview);
-select.addEventListener("touchmove", updatePosition);
-select.addEventListener("touchend", hidePreview);
-
-
 //TODO handle prompt example change
 
 const promptSelectElement = document.getElementById('example_prompt');
 const promptTextareaElement = document.getElementById('prompt');
 
-// Add an event listener for the 'change' event on the select element
 promptSelectElement.addEventListener('change', function() {
-    promptTextareaElement.value = promptSelectElement.value; // Update textarea with the selected prompt
+    promptTextareaElement.value = promptSelectElement.value;
+});
+
+//TODO handle style example change
+
+const styleSelectElement = document.getElementById('example_style');
+const styleTextareaElement = document.getElementById('style');
+
+styleSelectElement.addEventListener('change', function() {
+    styleTextareaElement.value = styleSelectElement.value;
 });
 
 //TODO handle model change
@@ -740,7 +771,6 @@ const modelSelectElement = document.getElementById('model');
 const cfgInputElement = document.getElementById('cfg_scale');
 const modelTypeInputElement = document.getElementById('model_type');
 
-// Add an event listener for the 'change' event on the select element
 modelSelectElement.addEventListener('change', function() {
     cfgInputElement.value = modelSelectElement.options[modelSelectElement.selectedIndex].dataset.cfg || 7;
     modelTypeInputElement.value = modelSelectElement.options[modelSelectElement.selectedIndex].dataset.type || "SDXL";
@@ -748,18 +778,15 @@ modelSelectElement.addEventListener('change', function() {
 
 //TODO handle pre dimension change
 
-// Assuming the following elements exist in your HTML
 const exampleSizeSelectElement = document.getElementById('example_size');
 const widthInputElement = document.getElementById('width');
 const heightInputElement = document.getElementById('height');
 
-// Add an event listener for the 'change' event on the example_size select element
 exampleSizeSelectElement.addEventListener('change', function() {
     const selectedOption = exampleSizeSelectElement.options[exampleSizeSelectElement.selectedIndex];
 
     if (selectedOption) {
-        // Parse the selected value to get width and height
-        const dimensions = selectedOption.value.split('x'); // Assuming the value format is "widthxheight"
+        const dimensions = selectedOption.value.split('x'); // Assuming the value format is "{width}x{height}"
         if (dimensions.length === 2) {
             widthInputElement.value = dimensions[0]; // Set width
             heightInputElement.value = dimensions[1]; // Set height

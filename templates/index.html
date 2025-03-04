@@ -40,6 +40,7 @@
                     <label for="model_type" title="The type of the model (change this if you know what are you doing or if the model is not working)">Choose a model type:</label>
                     <select id="model_type" name="model_type" required>
                         <option value="SDXL" selected>SDXL</option>
+                        <option value="SDXL 1.0" selected>SDXL 1.0</option>
                         <option value="SDXL Hyper" selected>SDXL Hyper</option>
                         <option value="SDXL Lightning">SDXL Lightning</option>
                         <option value="SD 1.5">SD 1.5</option>
@@ -69,6 +70,16 @@
                         <textarea id="negative_prompt" name="negative_prompt">lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], extra ears, nsfw, explicit</textarea><br>
                     </div>
 
+                    <label for="example_style" title="Choose from a list of example prompts.">Example Styles:</label>
+                    <select id="example_style" name="example_style">
+                        <option value=""></option>
+                    </select><br>
+
+                    <div id="style-div" class="input-div">
+                        <label for="style" title="Enter the style (this is not required but useful when using multi prompt)<br>will be added end of the prompt when generating">Style Prompt:</label>
+                        <textarea id="style" name="style" required></textarea><br>
+                    </div>
+
                     <div id="buttons">
                         <button type="button" id="promptSaveButton" onclick="savePrompt()"><span>Save Prompt</span></button>
                     </div>
@@ -78,7 +89,6 @@
                     <div id="size-select">
                         <label for="example_size" title="Choose from a list of sizes.">Size Examples:</label>
                         <select id="example_size" name="example_size">
-                            <option value="832x1216">13:19 - 832x1216 - Vertical</option>
                         </select><br>
 
                         <label for="width" title="Set the width of the generated image. Minimum value is 800.">Width:</label>

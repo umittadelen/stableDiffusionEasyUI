@@ -51,8 +51,11 @@
         function openMetadata(){
             window.location.href = `${window.location.protocol}//${window.location.host}{{ url_for('metadata') }}?url=${window.location.protocol}//${window.location.host}{{ url_for('serve_image', filename=image) }}`;
         }
-
+        updateImage();
+        
         let intervalId = setInterval(updateImage, 2500);
+        
+        const alldiv = document.getElementById('all');
 
         alldiv.style.display = 'none';
 
@@ -61,7 +64,7 @@
             const imageLink = document.getElementById('image-link');
             const errora = document.getElementById('404a');
             const timestamp = new Date().getTime();
-            const alldiv = document.getElementById('all');
+            
 
             fetch(`{{ url_for('serve_image', filename=image) }}?t=` + timestamp)
             .then(response => {
@@ -84,7 +87,7 @@
                         }, 500);
                     };
                     alldiv.style.display = 'block';
-                } else if (data.status === 'Image not found') {
+                } else {
                     const newSrc = data.image;
                     document.getElementById('all').remove();
                     errora.innerHTML = newSrc;
