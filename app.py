@@ -55,6 +55,8 @@ def check_online():
         pass  # Handle if there's no internet connection
     return False  # Computer is offline
 
+torchdtype = torch.float16
+
 gconfig = {
     "generation_stopped":False,
     "generating": False,
@@ -67,7 +69,6 @@ gconfig = {
     "image_cache": {},
     "downloading": False,
     "generation_done": False,
-    "dtype": torch.float16,
 
     "theme": {"tone_1": "240, 240, 240","tone_2": "240, 218, 218","tone_3": "240, 163, 163"},
     "enable_attention_slicing": True,
@@ -173,20 +174,20 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
 
     if "controlnet" in generation_type:
         if "canny" in generation_type and model_type in gconfig["SDXL"]:
-            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", torch_dtype=gconfig["dtype"])
+            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torchdtype)
         if "canny" in generation_type and model_type in gconfig["SD 1.5"]:
-            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", torch_dtype=gconfig["dtype"])
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", torch_dtype=torchdtype)
 
         if "depth" in generation_type and model_type in gconfig["SDXL"]:
-            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-depth-sdxl-1.0", torch_dtype=gconfig["dtype"])
+            controlnet = ControlNetModel.from_pretrained("diffusers/controlnet-depth-sdxl-1.0", torch_dtype=torchdtype)
         if "depth" in generation_type and model_type in gconfig["SD 1.5"]:
-            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", torch_dtype=gconfig["dtype"])
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", torch_dtype=torchdtype)
 
         if "normal" in generation_type and model_type in gconfig["SDXL"]:
-            #!controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=gconfig["dtype"])
+            #!controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=torchdtype)
             raise Exception("Normal Map is not supported for SDXL")
         if "normal" in generation_type and model_type in gconfig["SD 1.5"]:
-            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=gconfig["dtype"])
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-normal", torch_dtype=torchdtype)
 
         kwargs["controlnet"] = controlnet
 
@@ -259,7 +260,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
 
     pipe = pipeline(
         model_name,
-        torch_dtype=gconfig["dtype"],
+        torch_dtype=torchdtype,
         use_safetensors=True,
         add_watermarker=False,
         use_auth_token=gconfig["HF_TOKEN"],
@@ -270,13 +271,13 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
     gconfig["status"] = "Loading New Pipeline... (loading VAE)"
     if gconfig["use_long_clip"]:
         print(gconfig["long_clip_model"])
-        clip_model = CLIPModel.from_pretrained(gconfig["long_clip_model"], torch_dtype=gconfig["dtype"])
-        clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"], torch_dtype=gconfig["dtype"])
+        clip_model = CLIPModel.from_pretrained(gconfig["long_clip_model"], torch_dtype=torchdtype)
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"], torch_dtype=torchdtype)
         print("max token limit:", clip_processor.tokenizer.model_max_length)
     else:
         print(gconfig["default_clip_model"])
-        clip_model = CLIPModel.from_pretrained(gconfig["default_clip_model"], torch_dtype=gconfig["dtype"])
-        clip_processor = CLIPProcessor.from_pretrained(gconfig["default_clip_model"], torch_dtype=gconfig["dtype"])
+        clip_model = CLIPModel.from_pretrained(gconfig["default_clip_model"], torch_dtype=torchdtype)
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["default_clip_model"], torch_dtype=torchdtype)
         print("max token limit:", clip_processor.tokenizer.model_max_length)
 
     pipe.clip_model = clip_model
@@ -288,7 +289,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
         gconfig["status"] = "Model does not include a VAE. Loading external VAE..."
         vae = AutoencoderKL.from_pretrained(
             gconfig["fallback_vae_model"],
-            torch_dtype=gconfig["dtype"],
+            torch_dtype=torchdtype,
         )
         pipe.vae = vae
         gconfig["status"] = "External VAE loaded."
