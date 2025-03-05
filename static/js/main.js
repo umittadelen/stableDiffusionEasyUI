@@ -558,6 +558,13 @@ document.getElementById("prompt").addEventListener("contextmenu", async function
     }
 });
 
+document.getElementById("negative_prompt").addEventListener("contextmenu", async function(event) {
+    if (event.ctrlKey) {
+        event.preventDefault();
+        await resetValueOnRightClick(event);
+    }
+});
+
 function updateImageScales() {
     const images = document.querySelectorAll('#images img');
     const value = Number(document.getElementById('img_display_input').value); // Convert value to a number
