@@ -109,43 +109,47 @@ def downloadModelFromCivitai(modelID, versionID):
 
         model_data = getModeldata(modelID, versionID)
         print(f"{modelID}@{versionID}")
+        with open("data.json", "w") as f:
+            json.dump(model_data, f, indent=4)
 
-        # Ensure the model data was retrieved successfully
-        if not model_data:
-            print("Failed to retrieve model data.")
-            return
-        
-        modelData = shortenModelData(model_data)
-        
-        # Check if model_data.json exists and initialize it as an empty list if not
-        if not os.path.exists("./static/json/models.json"):
-            with open("./static/json/models.json", "w") as file:
-                file.write("[]")  # Initialize as an empty list
-        
-        with open("./static/json/models.json", "r+") as file:
-            data = json.load(file)
+        if __name__ != "__main__":
+            # Ensure the model data was retrieved successfully
+            if not model_data:
+                print("Failed to retrieve model data.")
+                return
+            
+            modelData = shortenModelData(model_data)
+            
+            # Check if model_data.json exists and initialize it as an empty list if not
+            if not os.path.exists("./static/json/models.json"):
+                with open("./static/json/models.json", "w") as file:
+                    file.write("[]")  # Initialize as an empty list
 
-            # Ensure data is a list
-            if not isinstance(data, list):
-                data = []  # Reinitialize as an empty list if not a list
-            
-            # Check if the model is already in the data
-            model_exists = any(existing_model['name'] == modelData['name'] for existing_model in data)
-            
-            if model_exists:
-                if checkForModelFiles(modelData):
-                    print("Model already exists and files are present.")
-                    return
+            with open("./static/json/models.json", "r+") as file:
+                data = json.load(file)
+
+                # Ensure data is a list
+                if not isinstance(data, list):
+                    data = []  # Reinitialize as an empty list if not a list
+                
+                # Check if the model is already in the data
+                model_exists = any(existing_model['name'] == modelData['name'] for existing_model in data)
+                
+                if model_exists:
+                    if checkForModelFiles(modelData):
+                        print("Model already exists and files are present.")
+                        return
+                    else:
+                        print("Model already exists but files are missing. Downloading again.")
+                        downloadModel(modelData, gconfig["CAI_TOKEN"])
+                        return
                 else:
-                    print("Model already exists but files are missing. Downloading again.")
+                    print("Model does not exist. Downloading...")
                     downloadModel(modelData, gconfig["CAI_TOKEN"])
-                    return
-            else:
-                print("Model does not exist. Downloading...")
-                downloadModel(modelData, gconfig["CAI_TOKEN"])
-                data.append(modelData)  # Add the new model data to the list
+                    data.append(modelData)  # Add the new model data to the list
     finally:
         gconfig["downloading"] = False
+        gconfig["status"] = "Finished Downloading"
 
 if __name__ == "__main__":
-    downloadModelFromCivitai("34469", "480978")
+    downloadModelFromCivitai("1025125", "1506467")

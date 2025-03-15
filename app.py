@@ -82,6 +82,7 @@ gconfig = {
     "default_clip_model": "openai/clip-vit-base-patch16",
     "fallback_tokenizer_model": "openai/clip-vit-base-patch16",
     "preview_size": "100",
+    "update_interwal": "2500",
     "show_latents": False,
     "show_model_preview": True,
     "load_previous_data": True,

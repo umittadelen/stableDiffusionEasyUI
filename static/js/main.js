@@ -180,6 +180,11 @@ async function resetFormButtonOnClick(event) {
 
 let updatepageIntervalId = setInterval(updatePage, 2500);
 
+function changeInterval(newInterval) {
+    clearInterval(updatepageIntervalId); // Stop the current interval
+    updatepageIntervalId = setInterval(updatePage, newInterval); // Start a new interval
+}
+
 function updatePage() {
     if (gconfig.update_page_in_background || (document.visibilityState === 'visible' && !pendingUpdates && !isCleared)) {
         if (!gconfig.update_page_in_background && !(document.visibilityState === 'visible')) {
@@ -200,6 +205,8 @@ function updatePage() {
             updateImageScales();
 
             updateModelPreview();
+
+            changeInterval(parseInt(gconfig.update_interwal))
 
             if (data.images.length < existingImages.size) {
                 existingImages.clear();
