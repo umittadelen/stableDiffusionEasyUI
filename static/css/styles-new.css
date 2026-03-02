@@ -105,6 +105,79 @@ label {
     color: var(--dark-text-color);
 }
 
+/* Settings info icon + tooltip */
+.setting-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    margin-bottom: 0.5em;
+}
+
+.setting-label label {
+    margin-bottom: 0;
+}
+
+.info-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1em;
+    height: 1.1em;
+    border-radius: 50%;
+    background-color: var(--highlight-color);
+    color: var(--light-text-color);
+    font-size: 0.72em;
+    font-weight: bold;
+    cursor: help;
+    flex-shrink: 0;
+    user-select: none;
+    line-height: 1;
+}
+
+.info-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0,0,0,0.85);
+    color: #fff;
+    font-size: 0.85em;
+    font-weight: normal;
+    padding: 0.5em 0.75em;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    max-width: 280px;
+    min-width: 160px;
+    text-align: left;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 9999;
+    line-height: 1.4;
+}
+
+.info-icon:hover::after {
+    opacity: 1;
+}
+
+.req-badge {
+    display: inline-block;
+    font-size: 0.7em;
+    font-weight: bold;
+    padding: 0.1em 0.45em;
+    border-radius: 4px;
+    margin-right: 0.2em;
+    vertical-align: middle;
+    color: var(--light-text-color);
+}
+
+.req-badge.gpu   { background-color: #27ae60; }
+.req-badge.cpu   { background-color: #2980b9; }
+.req-badge.vram  { background-color: #8e44ad; }
+.req-badge.slow  { background-color: #e67e22; }
+
 /* Form inputs */
 input,
 textarea,

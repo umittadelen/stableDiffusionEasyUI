@@ -4,6 +4,7 @@
     "4:3 (Classic)": [768,1024],
     "3:4 (Tall Portrait)": [960,1280],
     "5:4 (Near Square Desktop)": [1280,1024],
+    "4:5 (Portrait)": [1024,1280],
     "2:3 (Tall Portrait)": [1024,1536],
     "16:9 (Widescreen)": [1536,864],
     "21:9 (Ultra-Wide)": [1920,832],

@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, send_file, jsonify
-import torch, random, os, math, time, threading, sys, subprocess, glob, gc, logging, cv2, json, requests
+import torch, random, os, math, time, threading, sys, subprocess, glob, gc, logging, cv2, json, requests, atexit, signal
 from PIL import PngImagePlugin, Image
 import numpy as np
 from io import BytesIO
@@ -43,7 +43,7 @@ def isFile(a):
     return os.path.isfile(a)
 
 def resize_image(image, width, height):
-    return image.resize((width, height), resample=Image.BICUBIC)
+    return image.resize((width, height), resample=Image.Resampling.BICUBIC)
 
 def check_online():
     try:
@@ -109,12 +109,16 @@ gconfig = {
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Cache for the last loaded pipeline to avoid reloading on every request
+_pipeline_cache = {"pipe": None, "key": None}
+
 if isFile("./static/json/settings.json"):
     gconfig.update(json.load(open('./static/json/settings.json', 'r', encoding='utf-8')))
 
+_hf_token_path = os.path.expanduser("~/.cache/huggingface/token")
 gconfig["HF_TOKEN"] = (
-    open(f'C:/Users/{os.getlogin()}/.cache/huggingface/token', 'r').read().strip() 
-    if os.path.exists(f'C:/Users/{os.getlogin()}/.cache/huggingface/token') else
+    open(_hf_token_path, 'r').read().strip()
+    if os.path.exists(_hf_token_path) else
     json.load(open('./static/json/settings.json', 'r', encoding='utf-8'))["HF_TOKEN"]
     if isFile("./static/json/settings.json") else
     ""
@@ -138,16 +142,16 @@ if not isDirectory(gconfig["generated_dir"]):
 
 class controlNets:
     def get_depth_map(image, width, height):
-        return BEiTDepthEstimation(image).resize((width, height), resample=Image.BICUBIC)
+        return BEiTDepthEstimation(image).resize((width, height), resample=Image.Resampling.BICUBIC)
     def get_normal_map(image, width, height):
-        return NormalMap(image).resize((width, height), resample=Image.BICUBIC)
+        return NormalMap(image).resize((width, height), resample=Image.Resampling.BICUBIC)
     def get_canny_image(image, width, height):
         image = np.array(image)
 
         canny_edges = cv2.Canny(image, 100, 200)
         canny_edges = canny_edges[:, :, None]
         canny_edges = np.concatenate([canny_edges, canny_edges, canny_edges], axis=2)
-        return Image.fromarray(canny_edges).resize((width, height), resample=Image.BICUBIC)
+        return Image.fromarray(canny_edges).resize((width, height), resample=Image.Resampling.BICUBIC)
 
 def load_scheduler(pipe, scheduler_name):
     if   scheduler_name == "DPM++ 2M": pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
@@ -264,7 +268,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
         torch_dtype=torchdtype,
         use_safetensors=True,
         add_watermarker=False,
-        use_auth_token=gconfig["HF_TOKEN"],
+        token=gconfig["HF_TOKEN"],
         safety_checker=None,
         **kwargs
     )
@@ -272,13 +276,13 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
     gconfig["status"] = "Loading New Pipeline... (loading VAE)"
     if gconfig["use_long_clip"]:
         print(gconfig["long_clip_model"])
-        clip_model = CLIPModel.from_pretrained(gconfig["long_clip_model"], torch_dtype=torchdtype)
-        clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"], torch_dtype=torchdtype)
+        clip_model = CLIPModel.from_pretrained(gconfig["long_clip_model"], dtype=torchdtype)
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["long_clip_model"], use_fast=True)
         print("max token limit:", clip_processor.tokenizer.model_max_length)
     else:
         print(gconfig["default_clip_model"])
-        clip_model = CLIPModel.from_pretrained(gconfig["default_clip_model"], torch_dtype=torchdtype)
-        clip_processor = CLIPProcessor.from_pretrained(gconfig["default_clip_model"], torch_dtype=torchdtype)
+        clip_model = CLIPModel.from_pretrained(gconfig["default_clip_model"], dtype=torchdtype)
+        clip_processor = CLIPProcessor.from_pretrained(gconfig["default_clip_model"], use_fast=True)
         print("max token limit:", clip_processor.tokenizer.model_max_length)
 
     pipe.clip_model = clip_model
@@ -346,13 +350,16 @@ def latents_to_img(latents) -> Image:
     return Image.fromarray(image_array)
 
 def save_latents_image(latents, pipe, image_path, seed):
-    if not gconfig["enable_model_cpu_offload"]:
+    try:
+        latents = latents.detach().cpu().float()
         image = latents_to_img(latents)
         if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
             image.save(image_path, 'PNG')
             gconfig["image_cache"][seed] = [image_path]
+    except Exception:
+        pass  # Don't crash the generation thread over a preview
 
-def image_to_base64(img, temp_file=f"{gconfig["generated_dir"]}temp_base64_image.png"):
+def image_to_base64(img, temp_file=f"{gconfig['generated_dir']}temp_base64_image.png"):
     img = img.convert("RGB")
     img.save(temp_file, format="PNG")
     with open(temp_file, "rb") as f:
@@ -459,7 +466,8 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
                     text_encoder=[pipe.text_encoder, pipe.text_encoder_2],
                     returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED,
                     requires_pooled=[False, True],
-                    truncate_long_prompts=False
+                    truncate_long_prompts=False,
+                    device=device
                 )
                 prompt_embeds, pooled_prompt_embeds = compel(prompt)
                 negative_prompt_embeds, negative_pooled_prompt_embeds = compel(negative_prompt)
@@ -473,7 +481,7 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
                 kwargs["negative_prompt_embeds"] = negative_prompt_embeds
                 kwargs["negative_pooled_prompt_embeds"] = negative_pooled_prompt_embeds
             else:
-                compel = Compel(tokenizer=pipe.tokenizer, text_encoder=pipe.text_encoder)
+                compel = Compel(tokenizer=pipe.tokenizer, text_encoder=pipe.text_encoder, device=device)
                 kwargs["prompt_embeds"] = compel(prompt)
                 kwargs["negative_prompt_embeds"] = compel(negative_prompt)
         else:
@@ -578,7 +586,7 @@ def generate():
             png_info.add_text(k, str(v))
         img_input_link.save(f"{gconfig['generated_dir']}temp_image.png", pnginfo=png_info)
 
-    img_input = f"{gconfig["generated_dir"]}temp_image.png" if img_input_img else img_input_link
+    img_input = f"{gconfig['generated_dir']}temp_image.png" if img_input_img else img_input_link
 
     if prompts == "":
         gconfig["status"] = "No Prompt Provided"
@@ -587,9 +595,24 @@ def generate():
 
     #TODO: Function to generate images
     def generate_images():
+        global _pipeline_cache
         try:
             user_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_name.lstrip("./")).replace("\\", "/")
-            pipe = load_pipeline(user_model_path, model_type, generation_type, scheduler_name, clip_skip)
+            cache_key = (user_model_path, model_type, generation_type, scheduler_name, clip_skip)
+            if _pipeline_cache["pipe"] is not None and _pipeline_cache["key"] == cache_key:
+                print("Reusing cached pipeline...")
+                gconfig["status"] = "Reusing cached pipeline..."
+                pipe = _pipeline_cache["pipe"]
+            else:
+                # Unload old pipeline before loading new one
+                if _pipeline_cache["pipe"] is not None:
+                    del _pipeline_cache["pipe"]
+                    _pipeline_cache["pipe"] = None
+                    gc.collect()
+                    torch.cuda.empty_cache()
+                pipe = load_pipeline(user_model_path, model_type, generation_type, scheduler_name, clip_skip)
+                _pipeline_cache["pipe"] = pipe
+                _pipeline_cache["key"] = cache_key
         except Exception:
             traceback_details = traceback.format_exc()
             gconfig["generating"] = False
@@ -621,7 +644,7 @@ def generate():
 
                     #TODO: Update the progress message
                     gconfig["remainingImages"] = (image_count * len(prompt_list)) - (prompt_index * image_count + i)
-                    gconfig["status"] = f"Generating {gconfig["remainingImages"] * len(prompt_list)} Images..."
+                    gconfig["status"] = f"Generating {gconfig['remainingImages'] * len(prompt_list)} Images..."
                     gconfig["progress"] = 0
 
                     #TODO: Generate a new seed for each image
@@ -646,10 +669,10 @@ def generate():
             gconfig["progress"] = 0
 
         finally:
-            del pipe
-            torch.cuda.ipc_collect()
+            # Don't delete pipe here — it's kept in cache for reuse
             gc.collect()
             torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
             gconfig["progress"] = 0
             gconfig["generating"] = False
             gconfig["generation_stopped"] = False
@@ -749,7 +772,7 @@ def status():
 @app.route('/generated/<filename>', methods=['GET'])
 def serve_image(filename):
     image_path = os.path.join(gconfig["generated_dir"], filename)
-    resize_image = request.args.get('r') == '1' and gconfig["image_size"] != "100"
+    resize_image = request.args.get('r') == '1' and gconfig.get("preview_size", "100") != "100"
 
     if not os.path.exists(image_path):
         with open("./static/json/placeholders.json", "r") as f:
@@ -758,7 +781,7 @@ def serve_image(filename):
         return jsonify(status='Image not found', image=placeholder_text)
 
     if resize_image:
-        image_size_percentage = int(gconfig["image_size"])
+        image_size_percentage = int(gconfig.get("preview_size", "100"))
         image = Image.open(image_path)
 
         # Calculate new dimensions while keeping the aspect ratio
@@ -807,6 +830,12 @@ def clear_images():
 
 @app.route('/restart', methods=['POST'])
 def restart_app():
+    global _pipeline_cache
+    if _pipeline_cache["pipe"] is not None:
+        del _pipeline_cache["pipe"]
+        _pipeline_cache = {"pipe": None, "key": None}
+        gc.collect()
+        torch.cuda.empty_cache()
     gconfig["progress"] = 0
     subprocess.Popen([sys.executable] + sys.argv)
     os._exit(0)
@@ -897,7 +926,13 @@ def load_settings():
     with open('./static/json/settings.json', 'r', encoding='utf-8') as f:
         settings = json.load(f)
     gconfig.update(settings)
-    return jsonify(settings)
+    # Return full gconfig so all defaults are present, minus internal/sensitive keys
+    excluded = {
+        "HF_TOKEN", "image_cache", "status", "progress", "generating",
+        "generation_stopped", "generation_done", "downloading", "remainingImages",
+        "image_count", "custom_seed", "SDXL", "SD 1.5", "generated_dir"
+    }
+    return jsonify({k: v for k, v in gconfig.items() if k not in excluded})
 
 @app.route('/metadata')
 def metadata():
@@ -977,6 +1012,62 @@ def delete_model():
                 return jsonify({"error": str(e)}), 500
 
     return jsonify({"error": "Model not found"}), 404
+
+def _cleanup():
+    """Deep cleanup of GPU/CPU memory on server shutdown."""
+    global _pipeline_cache
+    print("[cleanup] Shutting down — freeing memory...")
+
+    # Stop any in-progress generation
+    gconfig["generation_stopped"] = True
+    gconfig["generating"] = False
+
+    # Unload cached pipeline and all sub-models
+    pipe = _pipeline_cache.get("pipe")
+    if pipe is not None:
+        try:
+            for attr in ("text_encoder", "text_encoder_2", "unet", "vae",
+                         "tokenizer", "tokenizer_2", "clip_model", "clip_processor",
+                         "controlnet", "scheduler", "feature_extractor"):
+                if hasattr(pipe, attr):
+                    delattr(pipe, attr)
+        except Exception:
+            pass
+        del pipe
+        _pipeline_cache["pipe"] = None
+        _pipeline_cache["key"] = None
+
+    # Full Python GC passes
+    for _ in range(3):
+        gc.collect()
+
+    # CUDA deep clean
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        torch.cuda.synchronize()
+        # Reset all CUDA memory stats
+        for i in range(torch.cuda.device_count()):
+            torch.cuda.reset_peak_memory_stats(i)
+            torch.cuda.reset_accumulated_memory_stats(i)
+        # Another GC pass after CUDA clean
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    print("[cleanup] Memory freed.")
+
+atexit.register(_cleanup)
+
+# Also catch Ctrl+C and SIGTERM (e.g. from task manager / systemd)
+def _signal_handler(sig, frame):
+    _cleanup()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _signal_handler)
+try:
+    signal.signal(signal.SIGINT, _signal_handler)
+except OSError:
+    pass  # SIGINT may not be settable in some environments
 
 if __name__ == '__main__':
     app.run(host=gconfig["host"], port=int(gconfig["port"]), debug=False)

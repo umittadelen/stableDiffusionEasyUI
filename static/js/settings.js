@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById("fallback-vae-model").value = data.fallback_vae_model || "clip-vae";
                 document.getElementById("default-clip-model").value = data.default_clip_model || "clip-vit-l-14-clip";
                 document.getElementById("fallback-tokenizer-model").value = data.fallback_tokenizer_model || "openai/clip-vit-base-patch16";
-                document.getElementById("image-size").value = data.image_size || "100";
+                document.getElementById("image-size").value = data.preview_size || "512";
                 document.getElementById("update-interwal").value = data.update_interwal || "2500";
                 document.getElementById("update-page-in-background").value = data.update_page_in_background ? "True" : "False";
                 document.getElementById("show-model-preview").value = data.show_model_preview ? "True" : "False";
@@ -51,12 +51,11 @@ function saveSettings(event) {
     if (themeValue) {
         try {
             const theme = JSON.parse(themeValue);
-            settings.theme = theme; // Store theme if valid
+            settings.theme = theme;
         } catch (error) {
             console.error('Error parsing theme:', error);
         }
     }
-    else
 
     // Handle other settings
     settings.enable_attention_slicing = document.getElementById("attention-slicing").value === "True";
@@ -68,7 +67,7 @@ function saveSettings(event) {
     settings.fallback_vae_model = document.getElementById("fallback-vae-model").value;
     settings.default_clip_model = document.getElementById("default-clip-model").value;
     settings.fallback_tokenizer_model = document.getElementById("fallback-tokenizer-model").value;
-    settings.image_size = document.getElementById("image-size").value;
+    settings.preview_size = document.getElementById("image-size").value;
     settings.update_interwal = document.getElementById("update-interwal").value;
     settings.update_page_in_background = document.getElementById("update-page-in-background").value === "True";
     settings.show_model_preview = document.getElementById("show-model-preview").value === "True";

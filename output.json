@@ -1,0 +1,148 @@
+{
+    "id": 1075361,
+    "index": 0,
+    "name": "V3",
+    "baseModel": "Illustrious",
+    "baseModelType": "Standard",
+    "createdAt": "2024-11-18T19:23:51.962Z",
+    "publishedAt": "2024-11-19T00:17:48.398Z",
+    "status": "Published",
+    "availability": "Public",
+    "nsfwLevel": 3,
+    "covered": false,
+    "stats": {
+        "downloadCount": 7648,
+        "thumbsUpCount": 1819,
+        "thumbsDownCount": 0
+    },
+    "files": [
+        {
+            "id": 980557,
+            "sizeKB": 6775430.8984375,
+            "name": "kiwimixXL_v3.safetensors",
+            "type": "Model",
+            "pickleScanResult": "Success",
+            "pickleScanMessage": "No Pickle imports",
+            "virusScanResult": "Success",
+            "virusScanMessage": null,
+            "scannedAt": "2024-11-18T19:59:33.330Z",
+            "metadata": {
+                "format": "SafeTensor",
+                "size": "full",
+                "fp": "fp16"
+            },
+            "hashes": {
+                "AutoV1": "BC837BF1",
+                "AutoV2": "83BDD0C158",
+                "SHA256": "83BDD0C15874929E584EE3C98FA799F91DAC0706463F86CF4AB8A86A903C8B93",
+                "CRC32": "7AA7E152",
+                "BLAKE3": "FEE7E0903CA3FA1188DC3CD35D2DB9D91F56F00ECAF03E428A44EC373A7C9011",
+                "AutoV3": "91671C9BC486"
+            },
+            "downloadUrl": "https://civitai.com/api/download/models/1075361",
+            "primary": true
+        }
+    ],
+    "images": [
+        {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/084c2281-526e-4a59-a34e-1533144fb709/original=true/40812739.jpeg",
+            "nsfwLevel": 1,
+            "width": 1024,
+            "height": 1536,
+            "hash": "UIMGu2^7PEK*_3WH%$v|tU5]TB,DiHwcQTa7",
+            "type": "image",
+            "minor": false,
+            "poi": false,
+            "hasMeta": true,
+            "hasPositivePrompt": false,
+            "onSite": false,
+            "remixOfId": null
+        },
+        {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/bca64756-445b-41c7-9639-421e1dbd5360/original=true/40853236.jpeg",
+            "nsfwLevel": 2,
+            "width": 1024,
+            "height": 1536,
+            "hash": "UYLhi0pI?cJ8?aR*i^xa~Ct7xarrIqRPM|%2",
+            "type": "image",
+            "minor": false,
+            "poi": false,
+            "hasMeta": true,
+            "hasPositivePrompt": true,
+            "onSite": false,
+            "remixOfId": null
+        },
+        {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/11941f9b-1cc2-4db9-aa4f-701eccd8d461/original=true/40812743.jpeg",
+            "nsfwLevel": 1,
+            "width": 1024,
+            "height": 1536,
+            "hash": "UQJ7?pm,O[lA_1?w9~pI58x]OaN{b_RO={M}",
+            "type": "image",
+            "minor": false,
+            "poi": false,
+            "hasMeta": true,
+            "hasPositivePrompt": false,
+            "onSite": false,
+            "remixOfId": null
+        },
+        {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/4df49236-b962-4b20-b4aa-a6184930d899/original=true/40812740.jpeg",
+            "nsfwLevel": 1,
+            "width": 1024,
+            "height": 1536,
+            "hash": "UHH2f%_MX.-Mtl5AT2-mkrk[-;E1JY?a-;Io",
+            "type": "image",
+            "minor": false,
+            "poi": false,
+            "hasMeta": true,
+            "hasPositivePrompt": false,
+            "onSite": false,
+            "remixOfId": null
+        },
+        {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/5753b3a1-d880-4d74-96f2-662e75e63787/original=true/40812742.jpeg",
+            "nsfwLevel": 1,
+            "width": 1024,
+            "height": 1536,
+            "hash": "UAI=Ja0JLg=X-wEm0jrC}-%503x^Mu9F^g_1",
+            "type": "image",
+            "minor": false,
+            "poi": false,
+            "hasMeta": true,
+            "hasPositivePrompt": false,
+            "onSite": false,
+            "remixOfId": null
+        },
+        {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/41dbff5e-0511-4c34-8fe7-1bb66441167d/original=true/40812746.jpeg",
+            "nsfwLevel": 1,
+            "width": 1024,
+            "height": 1536,
+            "hash": "UDHfIl000zI9BJ-7XrabtnD~+x=}^5n|AHnm",
+            "type": "image",
+            "minor": false,
+            "poi": false,
+            "hasMeta": true,
+            "hasPositivePrompt": false,
+            "onSite": false,
+            "remixOfId": null
+        },
+        {
+            "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/6f592f13-7c59-433e-9d5e-72d1049949a3/original=true/40812744.jpeg",
+            "nsfwLevel": 1,
+            "width": 1024,
+            "height": 1536,
+            "hash": "UHFOi;oZ0$5Z%Q$y9uJW0Jn#wIV?#NI:=^v|",
+            "type": "image",
+            "minor": false,
+            "poi": false,
+            "hasMeta": true,
+            "hasPositivePrompt": false,
+            "onSite": false,
+            "remixOfId": null
+        }
+    ],
+    "downloadUrl": "https://civitai.com/api/download/models/1075361",
+    "model_id": 264709
+}

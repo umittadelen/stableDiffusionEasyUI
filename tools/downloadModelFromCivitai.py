@@ -41,7 +41,7 @@ def shortenModelData(modelData):
             "disabled": False,
             "cfg": 7,
             "name": model_filename,
-            "path": f"{gconfig["defaultModelPath"]}{model_filename.split('.')[0]}/{model_filename}" if "files" in modelData else "",
+            "path": f"{gconfig['defaultModelPath']}{model_filename.split('.')[0]}/{model_filename}" if "files" in modelData else "",
             "images": {
                 "url": modelData["images"][0]["url"] if "images" in modelData else "",
                 "width": modelData["images"][0]["width"] if "images" in modelData else "",
@@ -75,7 +75,7 @@ def downloadModel(modelData, token, folderPath=gconfig["defaultModelPath"]):
     if not os.path.exists(f"{folderPath}/{model_folder}"):
         if not os.path.exists(f"{folderPath}/{model_folder}/{model_name}"):
             print("Starting to download...")
-            downloadWithTool(modelData["download_url"].split('?')[0] + f"?token={token}", folderPath, f"/{model_folder}/")
+            downloadWithTool(modelData["download_url"].split('?')[0], folderPath, f"/{model_folder}/", token)
         with open(f"{folderPath}/{model_folder}/{model_name}.json", "w") as file:
             json.dump(modelData, file, indent=4)
     else:
@@ -85,20 +85,40 @@ def downloadModel(modelData, token, folderPath=gconfig["defaultModelPath"]):
                 json.dump(modelData, file, indent=4)
         return
 
-def downloadWithTool(link, rootFolderPath=gconfig["defaultModelPath"], additionFolder=""):
+def resolve_download_url(link, token=""):
+    """Follow the civitai redirect to get the pre-signed B2 URL.
+    Civitai redirects to a B2 URL with its own signed ?Authorization=... param.
+    Forwarding a Bearer header to B2 causes a 403, so we resolve once here."""
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    response = requests.get(link, headers=headers, allow_redirects=False)
+    if response.status_code in (301, 302, 303, 307, 308):
+        resolved = response.headers.get("Location", link)
+        print(f"Resolved to: {resolved}")
+        return resolved
+    return link
+
+def downloadWithTool(link, rootFolderPath=gconfig["defaultModelPath"], additionFolder="", token=""):
+    # Resolve the civitai redirect first — the resulting B2 URL is pre-signed,
+    # so we must NOT send an Authorization header to it.
+    link = resolve_download_url(link, token)
     print(f"Downloading {link}")
     import shutil, subprocess
     def is_command_available(cmd):
             return shutil.which(cmd) is not None
+    dest = rootFolderPath + additionFolder.replace('./', '')
     if is_command_available("aria2c"):
         print("Using aria2c for download.")
-        subprocess.run(f"aria2c --console-log-level=error --summary-interval=10 -c -x 16 -k 1M -s 16 -d {rootFolderPath + additionFolder.replace('./','')} {link}", shell=True)
+        cmd = ["aria2c", "--console-log-level=error", "--summary-interval=10",
+               "-c", "-x", "16", "-k", "1M", "-s", "16", "-d", dest, link]
+        subprocess.run(cmd)
     elif is_command_available("wget"):
         print("Using wget for download.")
-        subprocess.run(f"wget -q -c -P {rootFolderPath + additionFolder.replace('./','')} '{link}'", shell=True)
+        cmd = ["wget", "-q", "-c", "-P", dest, link]
+        subprocess.run(cmd)
     elif is_command_available("curl"):
         print("Using curl for download.")
-        subprocess.run(f"curl -L -o \"{rootFolderPath + additionFolder.replace('./','')}\" \"{link}\"", shell=True)
+        cmd = ["curl", "-L", "-o", dest, link]
+        subprocess.run(cmd)
 
 def downloadModelFromCivitai(modelID, versionID):
     gconfig["downloading"] = True
