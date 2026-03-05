@@ -132,7 +132,7 @@ def login_to_huggingface():
         login()
 
 if check_online():
-    print("Computer is online")
+    print("Computer is connected to the internet")
     login_to_huggingface()
 else:
     print("Computer is offline")
