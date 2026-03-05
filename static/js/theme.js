@@ -7,9 +7,9 @@ async function loadTheme() {
 
         // Fallback to default theme if no theme is found
         savedData = data.theme || {
-            "tone_1": "240, 240, 240",
-            "tone_2": "240, 218, 218",
-            "tone_3": "240, 163, 163"
+            "tone_1": "18, 18, 24",
+            "tone_2": "32, 34, 48",
+            "tone_3": "200, 210, 230"
         };
 
         // Apply the saved theme to the document
@@ -21,9 +21,9 @@ async function loadTheme() {
 
         // Use default theme in case of error
         const defaultTheme = {
-            "tone_1": "240, 240, 240",
-            "tone_2": "240, 218, 218",
-            "tone_3": "240, 163, 163"
+            "tone_1": "18, 18, 24",
+            "tone_2": "32, 34, 48",
+            "tone_3": "200, 210, 230"
         };
 
         document.documentElement.style.setProperty('--tone1', defaultTheme.tone_1, 'important');

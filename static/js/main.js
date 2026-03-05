@@ -234,7 +234,17 @@ function updatePage() {
 
 function updateModelPreview() {
     const select = document.getElementById("model");
-    const preview = document.getElementById("model-preview");
+
+    // Create preview element on body (outside any transformed/filtered containers)
+    let preview = document.getElementById("model-preview");
+    if (!preview) {
+        preview = document.createElement("img");
+        preview.id = "model-preview";
+        preview.style.cssText = "display:none; position:fixed; z-index:10000; pointer-events:none; height:50vh; max-width:70%; width:auto; object-fit:contain; border-radius:8px;";
+        document.body.appendChild(preview);
+    } else if (preview.parentElement !== document.body) {
+        document.body.appendChild(preview);
+    }
 
     const showPreview = (event) => {
         const imageUrl = select.options[select.selectedIndex].dataset.src;
@@ -245,15 +255,18 @@ function updateModelPreview() {
             preview.style.maxWidth = "70%";
             preview.style.width = "auto";
             preview.style.objectFit = "contain";
-            preview.style.position = "absolute";
+            preview.style.position = "fixed";
+            preview.style.zIndex = "10000";
+            preview.style.pointerEvents = "none";
             updatePosition(event);
         }
     };
 
     const updatePosition = (event) => {
-        const { pageX: x, pageY: y } = event.touches ? event.touches[0] : event;
-        preview.style.left = `${x - preview.getBoundingClientRect().width / 2}px`;
-        preview.style.top = `${y + 10}px`;
+        const { clientX: x, clientY: y } = event.touches ? event.touches[0] : event;
+        const pw = preview.offsetWidth || 0;
+        preview.style.left = `${x - pw / 2}px`;
+        preview.style.top = `${y}px`;
     };
 
     const hidePreview = () => preview.style.display = "none";
