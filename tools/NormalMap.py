@@ -9,8 +9,8 @@ def NormalMap(image: Image.Image, **kwargs) -> Image.Image:
     device = torch.device(device)
     
     # Load depth estimation model
-    processor = DPTImageProcessor.from_pretrained("Intel/dpt-beit-large-512")
-    model = DPTForDepthEstimation.from_pretrained("Intel/dpt-beit-large-512").to(device)
+    processor = DPTImageProcessor.from_pretrained("Intel/dpt-hybrid-midas")
+    model = DPTForDepthEstimation.from_pretrained("Intel/dpt-hybrid-midas").to(device)
     
     # Preprocess image
     original_size = image.size
