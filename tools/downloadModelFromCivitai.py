@@ -27,7 +27,6 @@ def getModeldata(model_id, version_id):
 
 def shortenModelData(modelData):
     try:
-        open("output.json", "w").write(json.dumps(modelData, indent=4))
         model_filename = next(
             (v.get("name", "") for v in modelData.get("files", [])
             if str(modelData.get("id", "")) in v.get("downloadUrl", "")
@@ -129,8 +128,6 @@ def downloadModelFromCivitai(modelID, versionID):
 
         model_data = getModeldata(modelID, versionID)
         print(f"{modelID}@{versionID}")
-        with open("data.json", "w") as f:
-            json.dump(model_data, f, indent=4)
 
         if __name__ != "__main__":
             # Ensure the model data was retrieved successfully
