@@ -176,6 +176,27 @@
 
             <div id="form-separator"></div>
 
+            <div class="setting-label">
+                <label for="enable-nsfw-blur">Enable NSFW Blur:</label>
+                <span class="info-icon" data-tooltip="Blur images classified as NSFW in the gallery. Hover to reveal. Uses Falconsai/nsfw_image_detection_26 (downloaded ~90 MB on first use).">&#9432;</span>
+            </div>
+            <select id="enable-nsfw-blur" name="enable-nsfw-blur">
+                <option value="True">True</option>
+                <option value="False">False</option>
+            </select>
+
+            <div class="setting-label">
+                <label for="nsfw-threshold">NSFW Detection Sensitivity:</label>
+                <span class="info-icon" data-tooltip="Confidence threshold for NSFW detection.&#10;&#10;Low (0.3) = flag more images as NSFW&#10;Medium (0.5) = balanced (default)&#10;High (0.7) = only flag clear NSFW">&#9432;</span>
+            </div>
+            <select id="nsfw-threshold" name="nsfw-threshold">
+                <option value="0.3">Low (flag more)</option>
+                <option value="0.5">Medium (default)</option>
+                <option value="0.7">High (strict)</option>
+            </select>
+
+            <div id="form-separator"></div>
+
             <p>IP and port will apply after restarting the server.</p>
 
             <div class="setting-label">

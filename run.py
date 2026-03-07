@@ -47,6 +47,7 @@ REQUIREMENTS = [
     "opencv-python",
     "requests",
     "accelerate",
+    "matplotlib",
 ]
 
 # ---------------------------------------------------------------------------
@@ -193,6 +194,30 @@ def install_requirements():
     subprocess.run([VENV_PIP, "install"] + REQUIREMENTS, check=True)
 
 
+def install_extension_requirements():
+    """Install dependencies declared by extensions via requirements.txt."""
+    extensions_dir = os.path.join(SCRIPT_DIR, "extensions")
+    if not os.path.isdir(extensions_dir):
+        return
+
+    for name in sorted(os.listdir(extensions_dir)):
+        ext_dir = os.path.join(extensions_dir, name)
+        if not os.path.isdir(ext_dir):
+            continue
+        req_file = os.path.join(ext_dir, "requirements.txt")
+        if not os.path.isfile(req_file):
+            continue
+        print(f"[extensions] Installing requirements for '{name}' ...")
+        try:
+            subprocess.run(
+                [VENV_PIP, "install", "-r", req_file],
+                check=True,
+            )
+            print(f"[extensions] '{name}' requirements installed.")
+        except subprocess.CalledProcessError as exc:
+            print(f"[extensions] WARNING: Failed to install requirements for '{name}': {exc}")
+
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
@@ -230,6 +255,8 @@ def main():
     )
     if needs_setup:
         setup()
+
+    install_extension_requirements()
 
     print("[run] Launching app.py ...")
     app_path = os.path.join(SCRIPT_DIR, "app.py")

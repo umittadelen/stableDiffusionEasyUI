@@ -196,7 +196,7 @@ function updatePage() {
         .then((response) => response.json())
         .then((data) => {
             gconfig = data.gconfig;
-            document.getElementById('all').style.display = 'flex';
+            document.getElementById('all').style.display = '';
 
             updateProgressBars(data);
 
@@ -396,6 +396,22 @@ function processImageUpdates(images, reverse) {
             img.onclick = () => openLink("image/" + imgData.img.split('/').pop());
 
             wrapper.appendChild(img);
+
+            if (gconfig.enable_nsfw_blur) {
+                const imgFilename = imgData.img.split('/').pop().split('?')[0];
+                fetch(`/nsfw_check/${encodeURIComponent(imgFilename)}`)
+                    .then(r => r.json())
+                    .then(nsfwData => {
+                        if (nsfwData.rating === 'nsfw') {
+                            wrapper.classList.add('nsfw-blur');
+                            const badge = document.createElement('span');
+                            badge.className = 'nsfw-badge';
+                            badge.textContent = 'NSFW';
+                            wrapper.appendChild(badge);
+                        }
+                    })
+                    .catch(() => {});
+            }
 
             if (reverse && index === 0) {
                 imagesDiv.insertBefore(wrapper, imagesDiv.firstChild);

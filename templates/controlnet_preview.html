@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <title>Controlet Preview</title>
+    <title>ControlNet Preview</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles-new.css') }}">
     <style>
         body, html {
@@ -12,85 +12,209 @@
             padding: 0;
             height: 100%;
             width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             overflow: hidden;
-            background-color: #f0f0f0;
         }
 
-        input[type="file"] {
-            margin: 20px 0;
-            position: absolute;
-            top: 10px;
-            width: min-content;
-            left: 50%;
-            transform: translateX(-50%);
+        body {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
         }
 
-        #generateForm {
-            z-index: 9999;
+        /* ── Top control bar ── */
+        #control-bar {
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 18px;
+            background: rgba(var(--tone2), 0.55);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1px solid rgba(var(--tone3), 0.18);
+            box-shadow: 0 4px 18px rgba(0,0,0,0.22);
         }
 
-        select {
-            margin: 20px 0;
-            position: absolute;
-            bottom: 10px;
-            width: max-content;
-            left: 50%;
-            transform: translateX(-50%);
+        #control-bar h1 {
+            margin: 0;
+            font-size: 1.05em;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: var(--dark-text-color);
+            opacity: 0.85;
+            white-space: nowrap;
         }
 
-        img {
-            height: 100%;
-            max-width: 200%;
-            max-height: 200%;
-            position: absolute;
+        #control-bar input[type="file"] {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            padding: 7px 10px;
+            font-size: 0.88em;
+            background: rgba(var(--tone2), 0.45);
+            border: 1px solid rgba(var(--tone3), 0.2);
+            border-radius: var(--border-radius-sm);
+            color: var(--dark-text-color);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        #control-bar input[type="file"]:hover {
+            border-color: rgba(var(--tone3), 0.42);
+        }
+
+        #control-bar select {
+            flex-shrink: 0;
+            width: auto;
+            margin: 0;
+            padding: 8px 32px 8px 12px;
+            font-size: 0.9em;
+            background: rgba(var(--tone2), 0.45);
+            border: 1px solid rgba(var(--tone3), 0.2);
+            border-radius: var(--border-radius-sm);
+            color: var(--dark-text-color);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        #control-bar select:hover {
+            border-color: rgba(var(--tone3), 0.42);
+        }
+
+        /* Loading spinner badge */
+        #status-badge {
+            flex-shrink: 0;
+            font-size: 0.8em;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: rgba(var(--tone3), 0.14);
+            color: var(--dark-text-color);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            white-space: nowrap;
+        }
+
+        #status-badge.visible {
+            opacity: 1;
+        }
+
+        /* ── Image display area ── */
+        #image-area {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: rgba(var(--tone1), 0.6);
+        }
+
+        #placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: var(--dark-text-color);
+            opacity: 0.28;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #placeholder svg {
+            width: 64px;
+            height: 64px;
+            fill: rgba(var(--tone3), 0.6);
+        }
+
+        #placeholder p {
+            margin: 0;
+            font-size: 0.95em;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        #displayImage {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
             image-rendering: pixelated;
-            z-index: 1;
+            display: none;
+            border-radius: 6px;
+            box-shadow: 0 6px 36px rgba(0,0,0,0.35);
+        }
+
+        #displayImage.loaded {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div id="all">
-        <form id="generateForm">
+    <!-- Control bar always on top -->
+    <div id="control-bar">
+        <h1>ControlNet Preview</h1>
+        <form id="generateForm" style="display:contents;">
             <input type="file" id="imageUpload" name="imageUpload" accept="image/*">
             <select name="type_select" id="type_select">
                 <option value="canny">Canny</option>
-                <option value="depth">Depth</option>
+                <option value="depth_pro">Depth — DepthPro (Apple)</option>
+                <option value="depth_beit">Depth — BEiT (Intel)</option>
                 <option value="normal">Normal Map</option>
             </select>
         </form>
+        <span id="status-badge">Processing…</span>
     </div>
-    
-    <img id="displayImage" alt="Processed Image">
+
+    <!-- Image display below the bar -->
+    <div id="image-area">
+        <div id="placeholder">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2ZM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5Z"/>
+            </svg>
+            <p>Upload an image to preview</p>
+        </div>
+        <img id="displayImage" alt="ControlNet processed image">
+    </div>
 
     <script>
-        async function send(event){
+        const badge = document.getElementById('status-badge');
+        const placeholder = document.getElementById('placeholder');
+        const imgEl = document.getElementById('displayImage');
+
+        async function send() {
             const file = document.getElementById('imageUpload').files[0];
             if (!file) return;
+
+            badge.textContent = 'Processing…';
+            badge.classList.add('visible');
 
             const formData = new FormData(document.getElementById('generateForm'));
 
             try {
                 const response = await fetch('/serve_controlnet', { method: 'POST', body: formData });
-                if (!response.ok) throw new Error('Error uploading image');
+                if (!response.ok) throw new Error('Server error: ' + response.status);
 
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
 
-                const imgElement = document.getElementById('displayImage');
-                imgElement.src = url;
+                imgEl.src = url;
+                imgEl.classList.add('loaded');
+                placeholder.style.display = 'none';
+
+                badge.textContent = 'Done';
+                setTimeout(() => badge.classList.remove('visible'), 1500);
             } catch (error) {
                 console.error(error);
-                alert('Failed to process the image. Please try again.');
+                badge.textContent = 'Error';
+                setTimeout(() => badge.classList.remove('visible'), 2500);
             }
         }
 
-        // Add event listeners without immediately invoking the function
         document.getElementById('imageUpload').addEventListener('change', send);
         document.getElementById('type_select').addEventListener('change', send);
     </script>
-    <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
 </body>
 </html>

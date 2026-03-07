@@ -22,7 +22,7 @@
     --glass-bg: rgba(var(--tone2), 0.45);
     --glass-border: 1px solid rgba(var(--tone3), 0.22);
     --glass-blur: 18px;
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    --glass-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
     --transition: all 0.25s ease;
     --border: 1px solid rgba(var(--tone3), 0.25);
@@ -296,12 +296,56 @@ select option:disabled {
    ══════════════════════════════════════════ */
 .image-wrapper {
     margin-bottom: 10px;
+    position: relative;
 }
 
 .image-wrapper img {
     width: 100%;
     border-radius: var(--border-radius-sm);
     border: 1px solid rgba(var(--tone3), 0.15);
+}
+
+/* ══════════════════════════════════════════
+   NSFW BLUR
+   ══════════════════════════════════════════ */
+.nsfw-blur img {
+    filter: blur(12px);
+    transition: filter 1.2s ease 0.8s;
+    /* clip blur to the image bounds — no bleed outside the div */
+    border-radius: inherit;
+    isolation: isolate;
+}
+
+.nsfw-blur {
+    overflow: hidden;
+}
+
+.nsfw-blur:hover img,
+.nsfw-blur:focus-within img {
+    filter: blur(0);
+    transition: filter 1.2s ease 0.8s;
+}
+
+.nsfw-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(200, 30, 30, 0.85);
+    color: #fff;
+    font-size: 0.68em;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 2;
+    transition: opacity 1.2s ease 0.8s;
+}
+
+.nsfw-blur:hover .nsfw-badge,
+.nsfw-blur:focus-within .nsfw-badge {
+    opacity: 0;
+    transition: opacity 1.2s ease 0.8s;
 }
 
 /* ══════════════════════════════════════════
@@ -730,7 +774,7 @@ p {
 /* ══════════════════════════════════════════
    RESPONSIVE  (collapse to single column)
    ══════════════════════════════════════════ */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
     #all {
         grid-template-columns: 1fr;
         height: auto;
@@ -753,6 +797,10 @@ p {
     .action-bar {
         justify-content: center;
     }
+
+    .param-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 500px) {
@@ -762,9 +810,5 @@ p {
 
     #images img {
         min-width: 90vw;
-    }
-
-    .param-row {
-        grid-template-columns: 1fr;
     }
 }

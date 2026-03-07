@@ -25,12 +25,14 @@ from diffusers import (
     AutoencoderKL
 )
 from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor
-from compel import Compel, ReturnedEmbeddingsType
+from compel import Compel, ReturnedEmbeddingsType, CompelForSDXL, CompelForSD
 from diffusers.utils import load_image
 from tools.downloadModelFromCivitai import downloadModelFromCivitai
+from tools.DepthPro import DepthPro
 from tools.BEiTDepthEstimation import BEiTDepthEstimation
 from tools.NormalMap import NormalMap
 import base64
+from extension_loader import extension_loader, AppAPI
 
 app = Flask(__name__)
 log = logging.getLogger('werkzeug')
@@ -70,7 +72,7 @@ gconfig = {
     "downloading": False,
     "generation_done": False,
 
-    "theme": {"tone_1": "240, 240, 240","tone_2": "240, 218, 218","tone_3": "240, 163, 163"},
+    "theme": {"tone_1": "22, 18, 22","tone_2": "42, 32, 42","tone_3": "220, 140, 170"},
     "enable_attention_slicing": True,
     "enable_xformers_memory_efficient_attention": False,
     "enable_model_cpu_offload": True,
@@ -90,6 +92,9 @@ gconfig = {
     "reverse_image_order": False,
     "use_multi_prompt": True,
     "multi_prompt_separator": "§",
+
+    "enable_nsfw_blur": True,
+    "nsfw_threshold": 0.5,
 
     "host":"localhost",
     "port":"8080",
@@ -141,7 +146,11 @@ if not isDirectory(gconfig["generated_dir"]):
     os.mkdir(gconfig["generated_dir"])
 
 class controlNets:
-    def get_depth_map(image, width, height):
+    def get_depth_map(image, width, height, colored=False):
+        """DepthPro (Apple) — metric depth, colored heatmap or grayscale for ControlNet."""
+        return DepthPro(image, colored=colored).resize((width, height), resample=Image.Resampling.BICUBIC)
+    def get_depth_map_beit(image, width, height):
+        """BEiT depth (Intel DPT-BEiT-Large-512) — grayscale depth map."""
         return BEiTDepthEstimation(image).resize((width, height), resample=Image.Resampling.BICUBIC)
     def get_normal_map(image, width, height):
         return NormalMap(image).resize((width, height), resample=Image.Resampling.BICUBIC)
@@ -173,6 +182,7 @@ def load_scheduler(pipe, scheduler_name):
 
 def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_skip):
     gconfig["status"] = "Loading New Pipeline... (loading Pipeline)"
+    extension_loader.hooks.fire("before_load_pipeline", model_name=model_name, model_type=model_type)
     #TODO: Set the pipeline
 
     kwargs = {}
@@ -321,7 +331,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
     gconfig["status"] = "Loading New Pipeline... (pipe loaded)"
 
     pipe.to(device)
-    
+
     if gconfig["enable_attention_slicing"]:
         pipe.enable_attention_slicing()
     if gconfig["enable_xformers_memory_efficient_attention"]:
@@ -333,6 +343,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
 
     gconfig["status"] = "Pipeline Loaded..."
     print("Pipeline Loaded...")
+    extension_loader.hooks.fire("after_load_pipeline", pipe=pipe, model_name=model_name, model_type=model_type)
     return pipe
 
 def latents_to_img(latents) -> Image:
@@ -407,6 +418,7 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
         if "controlnet" in generation_type:
             if img_input:
+                print("Loading and preprocessing the input image for ControlNet...")
                 try:
                     image = load_image(img_input).convert("RGB")
                     if image_size == "resize":
@@ -422,8 +434,10 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
                 if use_orig_img == "false":
                     if "canny" in generation_type:
                         new_image = controlNets.get_canny_image(image, width, height)
-                    if "depth" in generation_type:
+                    if "depth_pro" in generation_type:
                         new_image = controlNets.get_depth_map(image, width, height)
+                    elif "depth_beit" in generation_type:
+                        new_image = controlNets.get_depth_map_beit(image, width, height)
                     if "normal" in generation_type:
                         new_image = controlNets.get_normal_map(image, width, height)
                     else:
@@ -433,7 +447,7 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
                 #! Pass the image to pipeline - (kwargs for controlnet)
                 kwargs["image"] = new_image
-                kwargs["strength"] = strength
+                kwargs["controlnet_conditioning_scale"] = float(strength)
             else:
                 gconfig["status"] = "Image Not Provided"
                 raise Exception("Image Not Provided")
@@ -461,29 +475,17 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
         if not gconfig["enable_sequential_cpu_offload"]:
             if hasattr(pipe, "tokenizer_2"):
-                compel = Compel(
-                    tokenizer=[pipe.tokenizer, pipe.tokenizer_2],
-                    text_encoder=[pipe.text_encoder, pipe.text_encoder_2],
-                    returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED,
-                    requires_pooled=[False, True],
-                    truncate_long_prompts=False,
-                    device=device
-                )
-                prompt_embeds, pooled_prompt_embeds = compel(prompt)
-                negative_prompt_embeds, negative_pooled_prompt_embeds = compel(negative_prompt)
-
-                max_length = max(prompt_embeds.shape[1], negative_prompt_embeds.shape[1])
-                prompt_embeds = pad_embeddings(prompt_embeds, max_length)
-                negative_prompt_embeds = pad_embeddings(negative_prompt_embeds, max_length)
-
-                kwargs["prompt_embeds"] = prompt_embeds
-                kwargs["pooled_prompt_embeds"] = pooled_prompt_embeds
-                kwargs["negative_prompt_embeds"] = negative_prompt_embeds
-                kwargs["negative_pooled_prompt_embeds"] = negative_pooled_prompt_embeds
+                compel = CompelForSDXL(pipe=pipe, device=device)
+                result = compel(prompt, negative_prompt=negative_prompt)
+                kwargs["prompt_embeds"] = result.embeds
+                kwargs["pooled_prompt_embeds"] = result.pooled_embeds
+                kwargs["negative_prompt_embeds"] = result.negative_embeds
+                kwargs["negative_pooled_prompt_embeds"] = result.negative_pooled_embeds
             else:
-                compel = Compel(tokenizer=pipe.tokenizer, text_encoder=pipe.text_encoder, device=device)
-                kwargs["prompt_embeds"] = compel(prompt)
-                kwargs["negative_prompt_embeds"] = compel(negative_prompt)
+                compel = CompelForSD(pipe=pipe, device=device)
+                result = compel(prompt, negative_prompt=negative_prompt)
+                kwargs["prompt_embeds"] = result.embeds
+                kwargs["negative_prompt_embeds"] = result.negative_embeds
         else:
             kwargs["prompt"] = prompt
             kwargs["negative_prompt"] = negative_prompt
@@ -629,6 +631,15 @@ def generate():
                     # Handle the case when the separator is empty or missing
                     prompt_list = [prompts.strip()]
 
+            extension_loader.hooks.fire(
+                "before_generate",
+                prompts=prompts,
+                image_count=image_count,
+                width=width,
+                height=height,
+                model_name=model_name,
+            )
+
             for prompt_index, prompt in enumerate(prompt_list):
 
                 if prompt == "":
@@ -658,6 +669,12 @@ def generate():
                     #TODO: Store the generated image path
                     if image_path:
                         gconfig["image_cache"][seed] = [image_path]
+                        extension_loader.hooks.fire(
+                            "after_generate",
+                            image_path=image_path,
+                            seed=seed,
+                            prompt=prompt,
+                        )
 
             gconfig["status"] = "Generation Complete"
         except Exception:
@@ -680,6 +697,10 @@ def generate():
     #TODO: Start image generation in a separate thread to avoid blocking
     threading.Thread(target=generate_images).start()
     return jsonify(status='Image generation started', count=image_count)
+
+@app.route('/extensions', methods=['GET'])
+def list_extensions():
+    return jsonify(extension_loader.get_info())
 
 @app.route('/save_prompt', methods=['POST'])
 def save_prompt():
@@ -738,9 +759,11 @@ def serve_controlnet():
     # Convert the result to a PIL Image
     if "canny" in controlnet_type:
         edges_image = controlNets.get_canny_image(img, width, height)
-    if "depth" in controlnet_type:
-        edges_image = controlNets.get_depth_map(img, width, height)
-    if "normal" in controlnet_type:
+    elif "depth_pro" in controlnet_type:
+        edges_image = controlNets.get_depth_map(img, width, height, colored=True)
+    elif "depth_beit" in controlnet_type:
+        edges_image = controlNets.get_depth_map_beit(img, width, height)
+    elif "normal" in controlnet_type:
         edges_image = controlNets.get_normal_map(img, width, height)
     else:
         edges_image = controlNets.get_canny_image(img, width, height)
@@ -938,6 +961,47 @@ def load_settings():
 def metadata():
     return render_template('metadata.html')
 
+@app.route('/nsfw_check/<path:filename>', methods=['GET'])
+def nsfw_check(filename):
+    # Prevent path traversal — only allow bare filenames
+    filename = os.path.basename(filename)
+    image_path = os.path.join(gconfig["generated_dir"], filename)
+
+    if not os.path.exists(image_path):
+        return jsonify(error='Image not found'), 404
+
+    # Return cached rating stored in the PNG metadata
+    try:
+        img = Image.open(image_path)
+        if "NSFWRating" in img.info:
+            return jsonify(rating=img.info["NSFWRating"])
+    except Exception:
+        return jsonify(rating="normal")
+
+    # Run classifier (lazy-loads model on first call)
+    from tools.NSFWClassifier import classify
+    try:
+        threshold = float(gconfig.get("nsfw_threshold", 0.5))
+    except (ValueError, TypeError):
+        threshold = 0.5  # fallback if old string value (e.g. "sensitive") is still in settings
+    rating = classify(img, threshold=threshold)
+
+    # Write rating back into the PNG metadata so we never recompute it
+    try:
+        meta = PngImagePlugin.PngInfo()
+        for k, v in img.info.items():
+            if isinstance(v, str):
+                try:
+                    meta.add_text(k, v)
+                except Exception:
+                    pass
+        meta.add_text("NSFWRating", rating)
+        img.save(image_path, "PNG", pnginfo=meta)
+    except Exception:
+        pass
+
+    return jsonify(rating=rating)
+
 def get_model_configs():
     """Scans the models directory and returns a list of model configurations."""
     models_path = "./models/"
@@ -1070,5 +1134,20 @@ except OSError:
     pass  # SIGINT may not be settable in some environments
 
 if __name__ == '__main__':
+    _api = AppAPI(
+        device=device,
+        dtype=torchdtype,
+        pipeline_cache=_pipeline_cache,
+        load_pipeline=load_pipeline,
+        load_scheduler=load_scheduler,
+        generateImage=generateImage,
+        resize_image=resize_image,
+        image_to_base64=image_to_base64,
+        latents_to_img=latents_to_img,
+        get_model_configs=get_model_configs,
+        controlNets=controlNets,
+    )
+    extension_loader.load_all(app, gconfig, _api)
+    extension_loader.hooks.fire("on_app_start", app=app, gconfig=gconfig)
     app.run(host=gconfig["host"], port=int(gconfig["port"]), debug=False)
     gconfig["status"] = "Server Started"
