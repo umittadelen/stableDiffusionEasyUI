@@ -309,21 +309,22 @@ select option:disabled {
    NSFW BLUR
    ══════════════════════════════════════════ */
 .nsfw-blur img {
-    filter: blur(12px);
-    transition: filter 1.2s ease 0.8s;
-    /* clip blur to the image bounds — no bleed outside the div */
+    filter: blur(8px);
+    transform: scale(1.08);
+    transition: filter 1.2s ease 0.8s, transform 1.2s ease 0.8s;
     border-radius: inherit;
-    isolation: isolate;
 }
 
 .nsfw-blur {
     overflow: hidden;
+    border-radius: var(--border-radius-sm);
 }
 
 .nsfw-blur:hover img,
 .nsfw-blur:focus-within img {
     filter: blur(0);
-    transition: filter 1.2s ease 0.8s;
+    transform: scale(1);
+    transition: filter 1.2s ease 0.8s, transform 1.2s ease 0.8s;
 }
 
 .nsfw-badge {

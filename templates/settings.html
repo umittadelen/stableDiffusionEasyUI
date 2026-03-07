@@ -178,7 +178,7 @@
 
             <div class="setting-label">
                 <label for="enable-nsfw-blur">Enable NSFW Blur:</label>
-                <span class="info-icon" data-tooltip="Blur images classified as NSFW in the gallery. Hover to reveal. Uses Falconsai/nsfw_image_detection_26 (downloaded ~90 MB on first use).">&#9432;</span>
+                <span class="info-icon" data-tooltip="Blur images classified as NSFW in the gallery. Hover to reveal. Uses SmilingWolf/wd-swinv2-tagger-v3 — tuned for anime/AI art (downloaded ~60 MB on first use).">&#9432;</span>
             </div>
             <select id="enable-nsfw-blur" name="enable-nsfw-blur">
                 <option value="True">True</option>
@@ -187,11 +187,12 @@
 
             <div class="setting-label">
                 <label for="nsfw-threshold">NSFW Detection Sensitivity:</label>
-                <span class="info-icon" data-tooltip="Confidence threshold for NSFW detection.&#10;&#10;Low (0.3) = flag more images as NSFW&#10;Medium (0.5) = balanced (default)&#10;High (0.7) = only flag clear NSFW">&#9432;</span>
+                <span class="info-icon" data-tooltip="Confidence threshold for NSFW detection.&#10;&#10;Very Low (0.2) = flag almost everything&#10;Low (0.3) = catches borderline content (default)&#10;Medium (0.5) = balanced&#10;High (0.7) = only flag clearly explicit">&#9432;</span>
             </div>
             <select id="nsfw-threshold" name="nsfw-threshold">
-                <option value="0.3">Low (flag more)</option>
-                <option value="0.5">Medium (default)</option>
+                <option value="0.2">Very Low (flag almost all)</option>
+                <option value="0.3" selected>Low (default)</option>
+                <option value="0.5">Medium</option>
                 <option value="0.7">High (strict)</option>
             </select>
 

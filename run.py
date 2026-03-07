@@ -48,6 +48,8 @@ REQUIREMENTS = [
     "requests",
     "accelerate",
     "matplotlib",
+    "onnxruntime",
+    "pandas",
 ]
 
 # ---------------------------------------------------------------------------
@@ -260,8 +262,11 @@ def main():
 
     print("[run] Launching app.py ...")
     app_path = os.path.join(SCRIPT_DIR, "app.py")
-    result = subprocess.run([VENV_PYTHON, app_path])
-    sys.exit(result.returncode)
+    try:
+        result = subprocess.run([VENV_PYTHON, app_path])
+        sys.exit(result.returncode)
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 
 if __name__ == "__main__":

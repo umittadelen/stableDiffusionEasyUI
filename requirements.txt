@@ -10,3 +10,5 @@ opencv-python
 requests
 accelerate
 matplotlib
+onnxruntime
+pandas

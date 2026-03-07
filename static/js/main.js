@@ -4,6 +4,56 @@ let pendingUpdates = false;
 let isCleared = false;
 let gconfig = {};
 
+function applyNsfwState(wrapper, score) {
+    const threshold = parseFloat(gconfig.nsfw_threshold) || 0.5;
+    const shouldBlur = gconfig.enable_nsfw_blur && score >= threshold;
+    const hasBlur = wrapper.classList.contains('nsfw-blur');
+    if (shouldBlur && !hasBlur) {
+        wrapper.classList.add('nsfw-blur');
+        if (!wrapper.querySelector('.nsfw-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'nsfw-badge';
+            badge.textContent = 'NSFW';
+            wrapper.appendChild(badge);
+        }
+    } else if (!shouldBlur && hasBlur) {
+        wrapper.classList.remove('nsfw-blur');
+        wrapper.querySelector('.nsfw-badge')?.remove();
+    }
+}
+
+function reapplyNsfwBlur() {
+    if (!gconfig.enable_nsfw_blur) {
+        // Blur disabled — strip everything
+        document.querySelectorAll('.nsfw-blur').forEach(wrapper => {
+            wrapper.classList.remove('nsfw-blur');
+            wrapper.querySelector('.nsfw-badge')?.remove();
+        });
+        return;
+    }
+
+    // Re-evaluate wrappers that already have a cached score
+    document.querySelectorAll('.image-wrapper[data-nsfw-score]').forEach(wrapper => {
+        applyNsfwState(wrapper, parseFloat(wrapper.dataset.nsfwScore));
+    });
+
+    // Fetch scores for wrappers that were loaded while blur was disabled
+    document.querySelectorAll('.image-wrapper:not([data-nsfw-score])').forEach(wrapper => {
+        const img = wrapper.querySelector('img');
+        if (!img) return;
+        const filename = img.src.split('/').pop().split('?')[0];
+        if (!filename) return;
+        fetch(`/nsfw_check/${encodeURIComponent(filename)}`)
+            .then(r => r.json())
+            .then(nsfwData => {
+                const s = nsfwData.score ?? 0;
+                wrapper.dataset.nsfwScore = s;
+                applyNsfwState(wrapper, s);
+            })
+            .catch(() => {});
+    });
+}
+
 const customConfirm = new CustomConfirm();
 
 async function loadFormData() {
@@ -196,6 +246,7 @@ function updatePage() {
         .then((response) => response.json())
         .then((data) => {
             gconfig = data.gconfig;
+            reapplyNsfwBlur();
             document.getElementById('all').style.display = '';
 
             updateProgressBars(data);
@@ -402,13 +453,9 @@ function processImageUpdates(images, reverse) {
                 fetch(`/nsfw_check/${encodeURIComponent(imgFilename)}`)
                     .then(r => r.json())
                     .then(nsfwData => {
-                        if (nsfwData.rating === 'nsfw') {
-                            wrapper.classList.add('nsfw-blur');
-                            const badge = document.createElement('span');
-                            badge.className = 'nsfw-badge';
-                            badge.textContent = 'NSFW';
-                            wrapper.appendChild(badge);
-                        }
+                        const s = nsfwData.score ?? 0;
+                        wrapper.dataset.nsfwScore = s;
+                        applyNsfwState(wrapper, s);
                     })
                     .catch(() => {});
             }

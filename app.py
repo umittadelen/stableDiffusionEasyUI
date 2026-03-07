@@ -94,7 +94,7 @@ gconfig = {
     "multi_prompt_separator": "§",
 
     "enable_nsfw_blur": True,
-    "nsfw_threshold": 0.5,
+    "nsfw_threshold": 0.3,
 
     "host":"localhost",
     "port":"8080",
@@ -970,37 +970,38 @@ def nsfw_check(filename):
     if not os.path.exists(image_path):
         return jsonify(error='Image not found'), 404
 
-    # Return cached rating stored in the PNG metadata
+    # Return cached score if already computed
     try:
         img = Image.open(image_path)
-        if "NSFWRating" in img.info:
-            return jsonify(rating=img.info["NSFWRating"])
+        if "NSFWScoreWD" in img.info:
+            try:
+                return jsonify(score=float(img.info["NSFWScoreWD"]))
+            except (ValueError, TypeError):
+                pass
     except Exception:
-        return jsonify(rating="normal")
+        return jsonify(score=0.0)
 
-    # Run classifier (lazy-loads model on first call)
-    from tools.NSFWClassifier import classify
-    try:
-        threshold = float(gconfig.get("nsfw_threshold", 0.5))
-    except (ValueError, TypeError):
-        threshold = 0.5  # fallback if old string value (e.g. "sensitive") is still in settings
-    rating = classify(img, threshold=threshold)
+    # Run classifier (lazy-loads model on first call) — stores raw score, no threshold
+    from tools.NSFWClassifier import score as nsfw_score
+    nsfw = nsfw_score(img)
 
-    # Write rating back into the PNG metadata so we never recompute it
+    # Write score into PNG metadata
     try:
         meta = PngImagePlugin.PngInfo()
         for k, v in img.info.items():
+            if k in ("NSFWScoreWD", "NSFWScore", "NSFWRating", "NSFWThreshold"):
+                continue
             if isinstance(v, str):
                 try:
                     meta.add_text(k, v)
                 except Exception:
                     pass
-        meta.add_text("NSFWRating", rating)
+        meta.add_text("NSFWScoreWD", str(nsfw))
         img.save(image_path, "PNG", pnginfo=meta)
     except Exception:
         pass
 
-    return jsonify(rating=rating)
+    return jsonify(score=nsfw)
 
 def get_model_configs():
     """Scans the models directory and returns a list of model configurations."""

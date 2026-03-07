@@ -1,13 +1,19 @@
 # EasyUI
-### V2.1.4
+### V2.1.6
 
 **TextToImage** is a free, open-source text-to-image generation tool designed for ease of use, allowing anyone to run advanced models on their computer with customizable parameters and progress tracking.
 
 > [!NOTE]
 > The version available via `git clone` is more up-to-date than the releases because the repository contains the latest changes, which may not yet be included in the official release. *(but things can break easily and don't come with Python embedded)*
 
+## What's New in V2.1.6
+- **Improved NSFW classifier** — Switched from `Falconsai/nsfw_image_detection_26` (photo-based) to `SmilingWolf/wd-swinv2-tagger-v3` (ONNX) which is purpose-built for AI-generated and anime content. Uses `questionable`/`explicit` rating tags for accurate detection.
+- **Live NSFW sensitivity** — The NSFW score is now stored in PNG metadata (`NSFWScoreWD`). Threshold comparison happens on the JS side, so changing the sensitivity setting or toggling the blur updates all gallery images within one poll cycle — no page refresh needed.
+- **Lower default threshold** — Default NSFW threshold changed from 0.5 to 0.3 to better catch borderline content. Added a new "Very Low (0.2)" option for maximum sensitivity.
+- **Clean shutdown** — Pressing Ctrl+C no longer prints a traceback in `run.py`.
+
 ## What's New in V2.1.4
-- **NSFW Blur** — Gallery images flagged as NSFW are automatically blurred. Hover to reveal. Powered by `Falconsai/nsfw_image_detection_26`. Rating is cached in PNG metadata so images are only classified once. Configurable sensitivity threshold in Settings.
+- **NSFW Blur** — Gallery images flagged as NSFW are automatically blurred. Hover to reveal. Rating is cached in PNG metadata so images are only classified once. Configurable sensitivity threshold in Settings.
 - **Mobile Layout Fix** — The two-column parameter panel now correctly collapses to a single column on small screens.
 - **Charcoal Rose default theme** — The default theme is now the dark Charcoal Rose palette.
 - **Reduced shadow size** — Panel shadows are smaller and softer.
