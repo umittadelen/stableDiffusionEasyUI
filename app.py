@@ -496,11 +496,14 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
                     **kwargs
                 ).images[0]
         except Exception:
-            traceback_details = traceback.format_exc()
-            gconfig["status"] = f"Generation Stopped with reason:<br>{traceback_details}"
+            if gconfig["generation_stopped"]:
+                print("Generation Stopped", flush=True)
+            else:
+                traceback_details = traceback.format_exc()
+                gconfig["status"] = f"Generation Stopped with reason:<br>{traceback_details}"
+                print(f"Generation Stopped with reason:\n{traceback_details}", flush=True)
             gconfig["generation_stopped"] = True
             gconfig["generating"] = False
-            print(f"Generation Stopped with reason:\n{traceback_details}")
             return False
 
         metadata = PngImagePlugin.PngInfo()
@@ -531,11 +534,14 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
         return image_path
 
     except Exception:
-        traceback_details = traceback.format_exc()
-        gconfig["status"] = f"Generation Stopped with reason:<br>{traceback_details}"
-        gconfig["generation_stopped"] = True
-        gconfig["generating"] = False
-        print(f"Generation Stopped with reason:\n{traceback_details}")
+        if gconfig["generation_stopped"]:
+            print("Generation Stopped", flush=True)
+        else:
+            traceback_details = traceback.format_exc()
+            gconfig["status"] = f"Generation Stopped with reason:<br>{traceback_details}"
+            gconfig["generation_stopped"] = True
+            gconfig["generating"] = False
+            print(f"Generation Stopped with reason:\n{traceback_details}", flush=True)
         return False
 
 @app.route('/generate', methods=['POST'])
@@ -677,12 +683,13 @@ def generate():
                         )
 
             gconfig["status"] = "Generation Complete"
-        except Exception:
-            traceback_details = traceback.format_exc()
+        except Exception as exc:
+            if "Generation Stopped" not in str(exc):
+                traceback_details = traceback.format_exc()
+                gconfig["status"] = f"Error Generating Images...<br>{traceback_details}"
+                print(f"Error Generating Images...\n{traceback_details}")
             gconfig["generating"] = False
             gconfig["generation_stopped"] = False
-            gconfig["status"] = f"Error Generating Images...<br>{traceback_details}"
-            print(f"Error Generating Images...\n{traceback_details}")
             gconfig["progress"] = 0
 
         finally:
