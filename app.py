@@ -104,6 +104,7 @@ gconfig = {
         "SDXL 1.0",
         "SDXL Lightning",
         "SDXL Hyper",
+        "NoobAI",
         "Illustrious",
         "Pony"
     ],
