@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Manager</title>
+    <link rel="stylesheet" href="/static/css/styles-new.css">
+    <style>
+        body { padding: 2rem; }
+        h1 { margin-bottom: 1.5rem; }
+
+        #clone-form { display: flex; gap: .5rem; margin-bottom: .5rem; }
+        #clone-form input { flex: 1; }
+        #clone-msg { font-size: .85rem; min-height: 1.2em; margin-bottom: 1rem; }
+        #clone-msg.error { color: #f88; }
+        #clone-msg.ok    { color: #8f8; }
+
+        #ext-list { display: flex; flex-direction: column; gap: .75rem; }
+
+        .ext-card {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: .85rem 1rem;
+            border-radius: 8px;
+            background: rgba(var(--tone2), .35);
+        }
+        .ext-card.disabled { opacity: .45; }
+
+        .order-btns {
+            display: flex;
+            flex-direction: column;
+            gap: .2rem;
+            flex-shrink: 0;
+        }
+        .order-btn {
+            width: 2rem;
+            height: 1.6rem;
+            border: none;
+            border-radius: 4px;
+            background: rgba(var(--tone3), .2);
+            color: inherit;
+            cursor: pointer;
+            font-size: .85rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .order-btn:hover { background: rgba(var(--tone3), .4); }
+        .order-btn:disabled { opacity: .2; cursor: default; }
+
+        .order-badge {
+            flex-shrink: 0;
+            font-size: .75rem;
+            opacity: .45;
+            min-width: 1.5rem;
+            text-align: center;
+        }
+
+        .ext-info { flex: 1; min-width: 0; }
+        .ext-name { font-weight: 600; font-size: 1rem; }
+        .ext-meta { font-size: .78rem; opacity: .65; margin-top: .15rem; }
+        .ext-desc { font-size: .85rem; margin-top: .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ext-error { font-size: .78rem; color: #f88; margin-top: .2rem; white-space: pre-wrap; }
+
+        .toggle-btn {
+            flex-shrink: 0;
+            padding: .4rem .9rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: .85rem;
+            font-weight: 600;
+            background: rgba(var(--tone3), .25);
+            color: inherit;
+            transition: background .15s;
+        }
+        .toggle-btn:hover { background: rgba(var(--tone3), .45); }
+        .toggle-btn.enabled  { color: #8f8; }
+        .toggle-btn.disabled { color: #f88; }
+
+        .restart-note { margin-top: 1.5rem; font-size: .82rem; opacity: .55; }
+    </style>
+</head>
+<body>
+    <h1>Extension Manager</h1>
+
+    <div class="glass-panel" style="padding:1.25rem; margin-bottom:1.5rem;">
+        <label style="display:block; margin-bottom:.5rem; font-weight:600;">Clone from Git URL</label>
+        <div style="font-size:.82rem; background:rgba(255,180,0,.1); border:1px solid rgba(255,180,0,.35); border-radius:6px; padding:.6rem .85rem; margin-bottom:.75rem; line-height:1.5;">
+            ⚠ <strong>Trust warning:</strong> Extensions run arbitrary Python code on your machine.
+            Only clone repositories you trust. URLs must be <code>https://…/….git</code>.
+        </div>
+        <div id="clone-form">
+            <input type="text" id="clone-url" placeholder="https://github.com/user/my-extension.git">
+            <button class="btn-primary" onclick="cloneExt()">Clone</button>
+        </div>
+        <div id="clone-msg"></div>
+    </div>
+
+    <div id="ext-list"></div>
+
+    <p class="restart-note">⚠ Enable/disable and order changes take effect after restarting the server.</p>
+
+    <script>
+        function move(card, dir) {
+            const list = document.getElementById("ext-list");
+            if (dir === -1 && card.previousElementSibling)
+                list.insertBefore(card, card.previousElementSibling);
+            else if (dir === 1 && card.nextElementSibling)
+                list.insertBefore(card.nextElementSibling, card);
+            updateAll();
+            saveOrder();
+        }
+
+        function updateAll() {
+            const cards = [...document.getElementById("ext-list").children];
+            cards.forEach((c, i) => {
+                c.querySelector(".order-badge").textContent = "#" + (i + 1);
+                c.querySelector(".up-btn").disabled   = i === 0;
+                c.querySelector(".down-btn").disabled = i === cards.length - 1;
+            });
+        }
+
+        async function saveOrder() {
+            const order = [...document.getElementById("ext-list").children]
+                .map(c => c.dataset.folder).filter(Boolean);
+            await fetch("/extension_manager/reorder", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ order })
+            });
+        }
+
+        function makeCard(ext, index, total) {
+            const card = document.createElement("div");
+            card.className = "ext-card glass-panel" + (ext.enabled ? "" : " disabled");
+            card.dataset.folder = ext.folder;
+
+            const btns = document.createElement("div");
+            btns.className = "order-btns";
+
+            const up = document.createElement("button");
+            up.className = "order-btn up-btn";
+            up.textContent = "▲";
+            up.disabled = index === 0;
+            up.onclick = () => move(card, -1);
+
+            const down = document.createElement("button");
+            down.className = "order-btn down-btn";
+            down.textContent = "▼";
+            down.disabled = index === total - 1;
+            down.onclick = () => move(card, 1);
+
+            btns.appendChild(up);
+            btns.appendChild(down);
+
+            const badge = document.createElement("span");
+            badge.className = "order-badge";
+            badge.textContent = "#" + (index + 1);
+
+            const info = document.createElement("div");
+            info.className = "ext-info";
+
+            const name = document.createElement("div");
+            name.className = "ext-name";
+            name.textContent = ext.name || ext.folder;
+
+            const meta = document.createElement("div");
+            meta.className = "ext-meta";
+            const parts = [];
+            if (ext.version) parts.push("v" + ext.version);
+            parts.push(ext.folder);
+            if (!ext.enabled)    parts.push("disabled");
+            else if (ext.loaded) parts.push("loaded");
+            else                 parts.push("failed to load");
+            meta.textContent = parts.join(" · ");
+
+            info.appendChild(name);
+            info.appendChild(meta);
+
+            if (ext.description) {
+                const desc = document.createElement("div");
+                desc.className = "ext-desc";
+                desc.textContent = ext.description;
+                info.appendChild(desc);
+            }
+            if (ext.error) {
+                const err = document.createElement("div");
+                err.className = "ext-error";
+                err.textContent = ext.error;
+                info.appendChild(err);
+            }
+
+            const btn = document.createElement("button");
+            btn.className = "toggle-btn " + (ext.enabled ? "enabled" : "disabled");
+            btn.textContent = ext.enabled ? "Enabled" : "Disabled";
+            btn.onclick = () => toggle(ext.folder, btn, card);
+
+            card.appendChild(btns);
+            card.appendChild(badge);
+            card.appendChild(info);
+            card.appendChild(btn);
+            return card;
+        }
+
+        async function load() {
+            const res = await fetch("/extension_manager/list");
+            const items = await res.json();
+            const list = document.getElementById("ext-list");
+            list.innerHTML = "";
+            if (!items.length) { list.textContent = "No extensions found."; return; }
+            items.forEach((ext, i) => list.appendChild(makeCard(ext, i, items.length)));
+        }
+
+        async function toggle(folder, btn, card) {
+            const res = await fetch("/extension_manager/toggle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ folder })
+            });
+            const data = await res.json();
+            if (data.error) { console.warn(data.error); return; }
+            const enabled = data.enabled;
+            btn.className = "toggle-btn " + (enabled ? "enabled" : "disabled");
+            btn.textContent = enabled ? "Enabled" : "Disabled";
+            card.classList.toggle("disabled", !enabled);
+        }
+
+        async function cloneExt() {
+            const url = document.getElementById("clone-url").value.trim();
+            const msg = document.getElementById("clone-msg");
+            msg.className = "";
+            msg.textContent = "Cloning…";
+            const res = await fetch("/extension_manager/clone", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url })
+            });
+            const data = await res.json();
+            if (data.error) {
+                msg.className = "error";
+                msg.textContent = data.error;
+            } else {
+                msg.className = "ok";
+                msg.textContent = `Cloned '${data.folder}'. Restart the server to load it.`;
+                document.getElementById("clone-url").value = "";
+                load();
+            }
+        }
+
+        load();
+    </script>
+</body>
+</html>

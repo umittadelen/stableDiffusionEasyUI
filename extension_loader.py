@@ -161,12 +161,41 @@ class ExtensionLoader:
             os.makedirs(self.extensions_dir, exist_ok=True)
             return
 
-        for entry in sorted(os.listdir(self.extensions_dir)):
+        disabled_file = os.path.join(self.extensions_dir, "disabled.json")
+        disabled = set()
+        if os.path.isfile(disabled_file):
+            try:
+                import json as _json
+                with open(disabled_file, "r", encoding="utf-8") as _f:
+                    disabled = set(_json.load(_f))
+            except Exception:
+                pass
+
+        order_file = os.path.join(self.extensions_dir, "order.json")
+        order = []
+        if os.path.isfile(order_file):
+            try:
+                import json as _json
+                with open(order_file, "r", encoding="utf-8") as _f:
+                    order = _json.load(_f)
+            except Exception:
+                pass
+
+        all_entries = sorted(os.listdir(self.extensions_dir))
+        # extension_manager always first, then order.json sequence, then the rest
+        ordered = ["extension_manager"] + [e for e in order if e != "extension_manager"]
+        remaining = [e for e in all_entries if e not in ordered]
+        entries = ordered + remaining
+
+        for entry in entries:
             ext_path = os.path.join(self.extensions_dir, entry)
             if not os.path.isdir(ext_path):
                 continue
             if entry in self._registry:
                 continue  # already loaded
+            if entry in disabled:
+                print(f"[extensions] Skipping '{entry}' (disabled)")
+                continue
             init_file = os.path.join(ext_path, "__init__.py")
             if not os.path.isfile(init_file):
                 continue

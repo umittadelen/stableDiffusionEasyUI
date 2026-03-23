@@ -19,3 +19,9 @@
 /.setup_done
 /.gitattributes
 __pycache__
+/extensions/order.json
+/extensions/disabled.json
+/extensions/image_history/history.json
+/static/tc_bg
+/.amazonq
+/python-3.10.6

@@ -37,6 +37,26 @@ def setup(app, gconfig, hooks, api):
         with open(os.path.join(_EXT_STATIC, "index.html"), encoding="utf-8") as f:
             return f.read()
 
+    _BG_DIR = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "static", "tc_bg"
+    )
+    os.makedirs(_BG_DIR, exist_ok=True)
+
+    @app.route("/theme_customizer/upload_bg", methods=["POST"])
+    def tc_upload_bg():
+        from flask import request, jsonify
+        from werkzeug.utils import secure_filename
+        file = request.files.get("file")
+        if not file:
+            return jsonify(error="no file"), 400
+        ext = os.path.splitext(secure_filename(file.filename))[1].lower() or ".png"
+        if ext not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+            return jsonify(error="unsupported file type"), 400
+        dest = os.path.join(_BG_DIR, f"background{ext}")
+        file.save(dest)
+        return jsonify(url=f"/static/tc_bg/background{ext}")
+
     @app.route("/theme_customizer/save", methods=["POST"])
     def tc_save():
         from flask import request, jsonify

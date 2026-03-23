@@ -40,13 +40,16 @@
             width: 100%; height: 90px; border-radius: 10px;
             border: 1px solid rgba(var(--tone3), 0.2);
             margin-bottom: 18px;
-            background: rgb(var(--tone1));
-            transition: background 0.3s;
         }
-        .preview-box::after {
-            content: '';
+        .preview-bg {
             position: absolute; inset: 0;
-            background: var(--preview-overlay, transparent);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: inherit;
+        }
+        .preview-overlay {
+            position: absolute; inset: 0;
             border-radius: inherit;
             pointer-events: none;
         }
@@ -76,6 +79,11 @@
         <label>Text / Accent (tone 3)</label>
         <input type="color" id="tone3-picker">
     </div>
+    <div class="row">
+        <label>Glass blur</label>
+        <input type="range" id="glass-blur" min="0" max="40" step="1" value="18">
+        <span class="range-val" id="glass-blur-val">18px</span>
+    </div>
 
     <hr>
     <p class="section-heading">Background</p>
@@ -95,13 +103,11 @@
 
     <div id="bg-image-section">
         <div class="row">
-            <label>Image URL</label>
-            <input type="url" id="bg-url" placeholder="https://...">
-        </div>
-        <div class="row">
-            <label>Or upload a file</label>
+            <label>Upload image</label>
             <input type="file" id="bg-file" accept="image/*" style="flex:1;margin:0;">
         </div>
+        <p id="bg-current" style="font-size:0.8em;opacity:0.55;margin:-6px 0 14px 0;"></p>
+
         <div class="row">
             <label>Overlay color</label>
             <input type="color" id="overlay-color" value="#121218">
@@ -113,7 +119,10 @@
         </div>
     </div>
 
-    <div class="preview-box" id="preview"></div>
+    <div class="preview-box" id="preview">
+        <div class="preview-bg" id="preview-bg"></div>
+        <div class="preview-overlay" id="preview-overlay"></div>
+    </div>
 
     <div class="btn-row">
         <button onclick="saveSettings()">Save</button>
@@ -138,6 +147,8 @@ function rgbToHex(rgb) {
     return "#" + parts.map(v => v.toString(16).padStart(2,"0")).join("");
 }
 
+let _uploadedBgUrl = null;
+
 function getBgType() {
     return document.querySelector('input[name="bg-type"]:checked').value;
 }
@@ -152,18 +163,20 @@ function getOverlayColor() {
 }
 
 function updatePreview() {
-    const preview = document.getElementById("preview");
+    const bg = document.getElementById("preview-bg");
+    const ov = document.getElementById("preview-overlay");
     const type = getBgType();
     if (type === "color") {
-        preview.style.background = document.getElementById("bg-color-picker").value;
-        preview.style.setProperty("--preview-overlay", "transparent");
+        bg.style.background = document.getElementById("bg-color-picker").value;
+        ov.style.background = "transparent";
     } else if (type === "image") {
-        const url = document.getElementById("bg-url").value;
-        preview.style.background = url ? `url("${url}") center/cover no-repeat` : "";
-        preview.style.setProperty("--preview-overlay", getOverlayColor());
+        bg.style.background = _uploadedBgUrl
+            ? `url("${_uploadedBgUrl}") center/cover no-repeat`
+            : `rgb(var(--tone1))`;
+        ov.style.background = getOverlayColor();
     } else {
-        preview.style.background = "";
-        preview.style.setProperty("--preview-overlay", "transparent");
+        bg.style.background = `rgb(var(--tone1))`;
+        ov.style.background = "transparent";
     }
 }
 
@@ -181,9 +194,11 @@ function saveSettings() {
         tone1: hexToRgb(document.getElementById("tone1-picker").value),
         tone2: hexToRgb(document.getElementById("tone2-picker").value),
         tone3: hexToRgb(document.getElementById("tone3-picker").value),
+        glassBlur: parseInt(document.getElementById("glass-blur").value),
         bgType: type,
         bgColor: type === "color" ? document.getElementById("bg-color-picker").value : null,
-        bgImage: type === "image" ? document.getElementById("bg-url").value : null,
+        bgImage: type === "image" ? (_uploadedBgUrl ? _uploadedBgUrl.split("?")[0] : null) : null,
+        bgImageTs: type === "image" ? Date.now() : null,
         overlayColor: document.getElementById("overlay-color").value,
         overlayOpacity: document.getElementById("overlay-opacity").value,
     };
@@ -212,8 +227,15 @@ function populatePickers(cfg) {
         const radio = document.querySelector(`input[name="bg-type"][value="${cfg.bgType}"]`);
         if (radio) radio.checked = true;
     }
+    if (cfg.glassBlur != null) {
+        document.getElementById("glass-blur").value = cfg.glassBlur;
+        document.getElementById("glass-blur-val").textContent = cfg.glassBlur + "px";
+    }
     if (cfg.bgColor) document.getElementById("bg-color-picker").value = cfg.bgColor;
-    if (cfg.bgImage) document.getElementById("bg-url").value = cfg.bgImage;
+    if (cfg.bgImage) {
+        _uploadedBgUrl = cfg.bgImage + (cfg.bgImageTs ? "?t=" + cfg.bgImageTs : "");
+        document.getElementById("bg-current").textContent = "Current: " + cfg.bgImage.split("/").pop();
+    }
     if (cfg.overlayColor) document.getElementById("overlay-color").value = cfg.overlayColor;
     if (cfg.overlayOpacity != null) {
         document.getElementById("overlay-opacity").value = cfg.overlayOpacity;
@@ -259,7 +281,6 @@ function toggleBgSections() {
 document.querySelectorAll('input[name="bg-type"]').forEach(r =>
     r.addEventListener("change", toggleBgSections));
 
-document.getElementById("bg-url").addEventListener("input", updatePreview);
 document.getElementById("bg-color-picker").addEventListener("input", updatePreview);
 document.getElementById("overlay-color").addEventListener("input", updatePreview);
 document.getElementById("overlay-opacity").addEventListener("input", function() {
@@ -270,16 +291,26 @@ document.getElementById("overlay-opacity").addEventListener("input", function() 
 ["tone1-picker","tone2-picker","tone3-picker"].forEach(id =>
     document.getElementById(id).addEventListener("input", applyLive));
 
-// File upload → convert to data URL
+document.getElementById("glass-blur").addEventListener("input", function() {
+    document.getElementById("glass-blur-val").textContent = this.value + "px";
+    document.documentElement.style.setProperty("--glass-blur", this.value + "px", "important");
+});
 document.getElementById("bg-file").addEventListener("change", function() {
     const file = this.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-        document.getElementById("bg-url").value = e.target.result;
-        updatePreview();
-    };
-    reader.readAsDataURL(file);
+    const fd = new FormData();
+    fd.append("file", file);
+    this.value = "";
+    fetch("/theme_customizer/upload_bg", { method: "POST", body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.url) {
+                _uploadedBgUrl = data.url + "?t=" + Date.now();
+                document.getElementById("bg-current").textContent = "Current: " + data.url.split("/").pop();
+                updatePreview();
+            }
+        })
+        .catch(err => console.error("Upload failed:", err));
 });
 </script>
 </body>

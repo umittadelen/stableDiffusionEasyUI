@@ -12,8 +12,18 @@
         }
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.innerHTML = `<div class="btn-container">${icon ? icon : ""}<span>${label}</span></div>`;
-        btn.onclick = () => window.open(url);
+        const container = document.createElement("div");
+        container.className = "btn-container";
+        if (icon) {
+            const iconWrap = document.createElement("span");
+            iconWrap.innerHTML = icon; // icon is always a hardcoded SVG string from trusted extension code
+            container.appendChild(iconWrap.firstElementChild || iconWrap);
+        }
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = label;
+        container.appendChild(labelSpan);
+        btn.appendChild(container);
+        btn.onclick = () => location.href = url;
         slot.appendChild(btn);
     };
 
@@ -36,15 +46,16 @@
         if (cfg.tone1) root.style.setProperty("--tone1", cfg.tone1, "important");
         if (cfg.tone2) root.style.setProperty("--tone2", cfg.tone2, "important");
         if (cfg.tone3) root.style.setProperty("--tone3", cfg.tone3, "important");
+        if (cfg.glassBlur != null) root.style.setProperty("--glass-blur", cfg.glassBlur + "px", "important");
 
         if (cfg.bgType === "color" && cfg.bgColor) {
-            document.body.style.setProperty("background", cfg.bgColor, "important");
+            document.documentElement.style.setProperty("background", cfg.bgColor, "important");
+            document.body.style.setProperty("background", "transparent", "important");
         } else if (cfg.bgType === "image" && cfg.bgImage) {
-            document.body.style.setProperty(
-                "background",
-                `url("${cfg.bgImage}") center/cover no-repeat fixed`,
-                "important"
-            );
+            const bgUrl = cfg.bgImage + (cfg.bgImage.startsWith("/static/tc_bg/") ? "?t=" + (cfg.bgImageTs || "1") : "");
+            document.documentElement.style.setProperty("background", "transparent", "important");
+            document.body.style.setProperty("background", "transparent", "important");
+
             const hex = cfg.overlayColor || "#121218";
             const op  = cfg.overlayOpacity != null ? parseFloat(cfg.overlayOpacity) : 0.5;
             const r = parseInt(hex.slice(1,3),16);
@@ -52,7 +63,27 @@
             const b = parseInt(hex.slice(5,7),16);
             let el = document.getElementById("tc-overlay-style");
             if (!el) { el = document.createElement("style"); el.id = "tc-overlay-style"; document.head.appendChild(el); }
-            el.textContent = `body::before{content:'';position:fixed;inset:0;background:rgba(${r},${g},${b},${op});pointer-events:none;z-index:0;}body>*{position:relative;z-index:1;}`;
+            el.textContent = `
+                html::before {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    background: url("${bgUrl}") center/cover no-repeat;
+                    background-color: rgb(var(--tone1));
+                    pointer-events: none;
+                    z-index: -1;
+                }
+                html::after {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(${r},${g},${b},${op});
+                    pointer-events: none;
+                    z-index: -1;
+                }
+                html { background: rgb(var(--tone1)) !important; }
+                body { position: relative; z-index: 0; background: transparent !important; }
+            `;
         }
     }
 

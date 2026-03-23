@@ -360,26 +360,26 @@ function updateProgressBars(data, error = "") {
     };
 
     if (error) {
-        progressText.innerHTML = error;
+        progressText.textContent = error;
         resetProgress();
         return;
     }
 
     if (Number.isInteger(data.gconfig.status)) {
         setProgress(dynamicProgressBar, data.gconfig.status);
-        progressText.innerHTML = `Progress: ${data.gconfig.status}% Remaining: ${data.gconfig.remainingImages}`;
+        progressText.textContent = `Progress: ${data.gconfig.status}% Remaining: ${data.gconfig.remainingImages}`;
     }
     else if (data.gconfig.status.endsWith("Generation Stopped\n")) {
         resetProgress();
-        progressText.innerHTML = 'Generation Stopped';
+        progressText.textContent = 'Generation Stopped';
     }
     else if (typeof data.gconfig.status === 'string') {
         resetProgress();
-        progressText.innerHTML = data.gconfig.status.slice(-200).replace(/\n/g, '<br>');
+        progressText.textContent = data.gconfig.status.slice(-200);
     }
     else if (data.gconfig.status.trim() === "") {
         resetProgress();
-        progressText.innerHTML = 'Status: idle';
+        progressText.textContent = 'Status: idle';
     }
 
     if (Number.isInteger(data.gconfig.progress)) {
@@ -636,9 +636,10 @@ document.getElementById("negative_prompt").addEventListener("contextmenu", async
 
 function updateImageScales() {
     const images = document.querySelectorAll('#images img');
-    const value = Number(document.getElementById('img_display_input').value); // Convert value to a number
+    const value = Number(document.getElementById('img_display_input').value);
+    const isMobile = window.innerWidth <= 1024;
     images.forEach(img => {
-        img.style.width = `${100 / value - 4}vw`;
+        img.style.width = isMobile ? '100%' : `${100 / value - 4}vw`;
     });
 }
 
@@ -678,7 +679,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log('Dropped file:', file);
                 handleImageDrop(file);
             } else {
-                alert('Please drop an image file.');
+                console.warn('Please drop an image file.');
             }
         }
     });
@@ -702,7 +703,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             dataTransfer.items.add(file);
             imgInput.querySelector('#img_input_img').files = dataTransfer.files;
         } else {
-            alert('Please drop an image file.');
+            console.warn('Please drop an image file.');
         }
     });
 
@@ -714,7 +715,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function showTooltip(event) {
         const title = this.getAttribute('data-title');
-        tooltip.innerHTML = title;
+        tooltip.textContent = title;
         tooltip.style.display = 'block';
         tooltip.style.left = event.pageX + 'px';
         tooltip.style.top = event.pageY + 'px';
@@ -766,7 +767,7 @@ function handleImageDrop(file) {
         if (metadata) {
             updateFormFields(metadata);
         } else {
-            alert("No metadata found in this PNG image.");
+            console.warn("No metadata found in this PNG image.");
         }
     };
     reader.readAsArrayBuffer(file);
