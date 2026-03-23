@@ -1,7 +1,7 @@
 # EasyUI
 ### V2.1.6
 
-**TextToImage** is a free, open-source text-to-image generation tool designed for ease of use, allowing anyone to run advanced models on their computer with customizable parameters and progress tracking.
+**EasyUI** is a free, open-source text-to-image generation tool designed for ease of use, allowing anyone to run advanced models on their computer with customizable parameters and progress tracking.
 
 > [!NOTE]
 > The version available via `git clone` is more up-to-date than the releases because the repository contains the latest changes, which may not yet be included in the official release. *(but things can break easily and don't come with Python embedded)*
