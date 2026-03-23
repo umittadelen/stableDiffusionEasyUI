@@ -36,22 +36,6 @@ function reapplyNsfwBlur() {
     document.querySelectorAll('.image-wrapper[data-nsfw-score]').forEach(wrapper => {
         applyNsfwState(wrapper, parseFloat(wrapper.dataset.nsfwScore));
     });
-
-    // Fetch scores for wrappers that were loaded while blur was disabled
-    document.querySelectorAll('.image-wrapper:not([data-nsfw-score])').forEach(wrapper => {
-        const img = wrapper.querySelector('img');
-        if (!img) return;
-        const filename = img.src.split('/').pop().split('?')[0];
-        if (!filename) return;
-        fetch(`/nsfw_check/${encodeURIComponent(filename)}`)
-            .then(r => r.json())
-            .then(nsfwData => {
-                const s = nsfwData.score ?? 0;
-                wrapper.dataset.nsfwScore = s;
-                applyNsfwState(wrapper, s);
-            })
-            .catch(() => {});
-    });
 }
 
 const customConfirm = new CustomConfirm();
@@ -433,9 +417,15 @@ function processImageUpdates(images, reverse) {
         const key = imgData.seed;
 
         if (existingImages.has(key)) {
-            const existingImg = existingImages.get(key).querySelector('img');
+            const existingWrapper = existingImages.get(key);
+            const existingImg = existingWrapper.querySelector('img');
             if (existingImg.src !== imgData.img) {
                 existingImg.src = imgData.img+"?r=1";
+            }
+            // Apply nsfw score if it just became available
+            if (gconfig.enable_nsfw_blur && imgData.nsfw_score !== null && imgData.nsfw_score !== undefined && !existingWrapper.dataset.nsfwScore) {
+                existingWrapper.dataset.nsfwScore = imgData.nsfw_score;
+                applyNsfwState(existingWrapper, imgData.nsfw_score);
             }
         } else {
             const wrapper = document.createElement('div');
@@ -449,15 +439,11 @@ function processImageUpdates(images, reverse) {
             wrapper.appendChild(img);
 
             if (gconfig.enable_nsfw_blur) {
-                const imgFilename = imgData.img.split('/').pop().split('?')[0];
-                fetch(`/nsfw_check/${encodeURIComponent(imgFilename)}`)
-                    .then(r => r.json())
-                    .then(nsfwData => {
-                        const s = nsfwData.score ?? 0;
-                        wrapper.dataset.nsfwScore = s;
-                        applyNsfwState(wrapper, s);
-                    })
-                    .catch(() => {});
+                if (imgData.nsfw_score !== null && imgData.nsfw_score !== undefined) {
+                    wrapper.dataset.nsfwScore = imgData.nsfw_score;
+                    applyNsfwState(wrapper, imgData.nsfw_score);
+                }
+                // else: score not ready yet, reapplyNsfwBlur will handle it on next poll
             }
 
             if (reverse && index === 0) {

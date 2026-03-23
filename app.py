@@ -529,6 +529,31 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
             gconfig["generation_done"] = True
             image.save(image_path, 'PNG', pnginfo=metadata)
 
+        def _run_nsfw(path, img):
+            try:
+                from tools.NSFWClassifier import score as nsfw_score
+                nsfw = nsfw_score(img)
+                meta = PngImagePlugin.PngInfo()
+                reloaded = Image.open(path)
+                for k, v in reloaded.info.items():
+                    if k == "NSFWScoreWD":
+                        continue
+                    if isinstance(v, str):
+                        try:
+                            meta.add_text(k, v)
+                        except Exception:
+                            pass
+                meta.add_text("NSFWScoreWD", str(nsfw))
+                reloaded.save(path, "PNG", pnginfo=meta)
+                # update cache entry with score
+                if seed in gconfig["image_cache"]:
+                    gconfig["image_cache"][seed] = [path, nsfw]
+            except Exception:
+                pass
+
+        if gconfig["enable_nsfw_blur"] and not gconfig["generation_stopped"]:
+            threading.Thread(target=_run_nsfw, args=(image_path, image.copy()), daemon=True).start()
+
         gconfig["status"] = "DONE"
         gconfig["progress"] = 0
 
@@ -675,7 +700,7 @@ def generate():
 
                     #TODO: Store the generated image path
                     if image_path:
-                        gconfig["image_cache"][seed] = [image_path]
+                        gconfig["image_cache"][seed] = [image_path, None]
                         extension_loader.hooks.fire(
                             "after_generate",
                             image_path=image_path,
@@ -790,9 +815,10 @@ def controlnet():
 @app.route('/status', methods=['GET'])
 def status():
     #TODO: Convert the generated images to a list to send to the client
-    images =[{
+    images = [{
             'img': path[0],
-            'seed': seed
+            'seed': seed,
+            'nsfw_score': path[1]
         } for seed, path in gconfig["image_cache"].items()]
 
     return jsonify(
@@ -844,19 +870,15 @@ def clear_images():
     files = glob.glob(os.path.join(gconfig["generated_dir"], '*'))
     
     for file in files:
-        try:
-            os.remove(file)
-        except PermissionError:
-            traceback_details = traceback.format_exc()
-            gconfig["progress"] = 0
-            gconfig["status"] = f"Error Deleteing File..."
-            print(f"Error Deleteing File... {traceback_details}")
-        except Exception:
-            traceback_details = traceback.format_exc()
-            gconfig["progress"] = 0
-            gconfig["status"] = f"Error..."
-            print(f"Error... {traceback_details}")
-        
+        for _ in range(10):
+            try:
+                os.remove(file)
+                break
+            except PermissionError:
+                time.sleep(0.2)
+            except Exception:
+                break
+
     return jsonify(status='Images cleared')
 
 @app.route('/restart', methods=['POST'])

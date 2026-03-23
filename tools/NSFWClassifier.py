@@ -16,12 +16,16 @@ IMAGE_SIZE = 448
 _session = None
 _tag_names = []
 _rating_indices = {}   # {"general": idx, "sensitive": idx, "questionable": idx, "explicit": idx}
+_load_lock = __import__('threading').Lock()
 
 
 def _load_model() -> None:
     global _session, _tag_names, _rating_indices
     if _session is not None:
         return
+    with _load_lock:
+        if _session is not None:
+            return
 
     import onnxruntime as ort
     import pandas as pd
