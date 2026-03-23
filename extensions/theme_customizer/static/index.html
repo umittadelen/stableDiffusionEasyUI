@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Customizer</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/css/styles-new.css">
+    <!-- Seed tones from localStorage so CSS vars work before fetch resolves -->
+    <script>
+    (function(){
+        try {
+            var cfg = JSON.parse(localStorage.getItem("tc_settings") || "{}");
+            var r = document.documentElement;
+            if (cfg.tone1) r.style.setProperty("--tone1", cfg.tone1);
+            if (cfg.tone2) r.style.setProperty("--tone2", cfg.tone2);
+            if (cfg.tone3) r.style.setProperty("--tone3", cfg.tone3);
+        } catch(_) {}
+    })();
+    </script>
+    <style>
+        body { min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; }
+        #tc-wrap {
+            width: 100%;
+            max-width: 520px;
+            padding: 28px 24px;
+        }
+        .row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .row label { flex: 1; margin: 0; }
+        input[type="color"] { width: 48px; height: 36px; padding: 2px; border-radius: 8px; cursor: pointer; flex-shrink: 0; margin: 0; }
+        input[type="url"] { flex: 1; margin: 0; }
+        input[type="range"] { flex: 1; margin: 0; accent-color: rgb(var(--tone3)); }
+        .range-val { font-size: 0.85em; opacity: 0.7; min-width: 32px; text-align: right; flex-shrink: 0; }
+        .radio-row { display: flex; gap: 18px; margin-bottom: 14px; align-items: center; }
+        .radio-row label { margin: 0; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        input[type="radio"] { width: auto; margin: 0; }
+        #bg-image-section, #bg-color-section { display: none; }
+        .preview-box {
+            position: relative; overflow: hidden;
+            width: 100%; height: 90px; border-radius: 10px;
+            border: 1px solid rgba(var(--tone3), 0.2);
+            margin-bottom: 18px;
+            background: rgb(var(--tone1));
+            transition: background 0.3s;
+        }
+        .preview-box::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: var(--preview-overlay, transparent);
+            border-radius: inherit;
+            pointer-events: none;
+        }
+        .btn-row { display: flex; gap: 10px; }
+        .btn-row button { flex: 1; }
+        #save-status { text-align: center; font-size: 0.85em; opacity: 0; transition: opacity 0.4s; margin-top: 8px; }
+        hr { border: none; border-top: 1px solid rgba(var(--tone3), 0.12); margin: 20px 0; }
+        .section-heading { font-size: 0.82em; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.1em; opacity: 0.55; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+<div id="tc-wrap" class="glass-panel">
+    <h1>Theme Customizer</h1>
+
+    <p class="section-heading">UI Colors</p>
+
+    <div class="row">
+        <label>Background (tone 1)</label>
+        <input type="color" id="tone1-picker">
+    </div>
+    <div class="row">
+        <label>Panel (tone 2)</label>
+        <input type="color" id="tone2-picker">
+    </div>
+    <div class="row">
+        <label>Text / Accent (tone 3)</label>
+        <input type="color" id="tone3-picker">
+    </div>
+
+    <hr>
+    <p class="section-heading">Background</p>
+
+    <div class="radio-row">
+        <label><input type="radio" name="bg-type" value="none" checked> None</label>
+        <label><input type="radio" name="bg-type" value="color"> Solid Color</label>
+        <label><input type="radio" name="bg-type" value="image"> Image</label>
+    </div>
+
+    <div id="bg-color-section">
+        <div class="row">
+            <label>Background Color</label>
+            <input type="color" id="bg-color-picker" value="#121218">
+        </div>
+    </div>
+
+    <div id="bg-image-section">
+        <div class="row">
+            <label>Image URL</label>
+            <input type="url" id="bg-url" placeholder="https://...">
+        </div>
+        <div class="row">
+            <label>Or upload a file</label>
+            <input type="file" id="bg-file" accept="image/*" style="flex:1;margin:0;">
+        </div>
+        <div class="row">
+            <label>Overlay color</label>
+            <input type="color" id="overlay-color" value="#121218">
+        </div>
+        <div class="row">
+            <label>Overlay opacity</label>
+            <input type="range" id="overlay-opacity" min="0" max="1" step="0.01" value="0.5">
+            <span class="range-val" id="overlay-opacity-val">0.50</span>
+        </div>
+    </div>
+
+    <div class="preview-box" id="preview"></div>
+
+    <div class="btn-row">
+        <button onclick="saveSettings()">Save</button>
+        <button onclick="resetSettings()" class="btn-danger">Reset</button>
+    </div>
+    <p id="save-status">✓ Saved</p>
+</div>
+
+<script src="/theme_customizer/inject.js"></script>
+<script>
+const STORAGE_KEY = "tc_settings";
+
+function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `${r}, ${g}, ${b}`;
+}
+
+function rgbToHex(rgb) {
+    const parts = rgb.split(",").map(s => parseInt(s.trim()));
+    return "#" + parts.map(v => v.toString(16).padStart(2,"0")).join("");
+}
+
+function getBgType() {
+    return document.querySelector('input[name="bg-type"]:checked').value;
+}
+
+function getOverlayColor() {
+    const hex = document.getElementById("overlay-color").value;
+    const op  = parseFloat(document.getElementById("overlay-opacity").value);
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${op})`;
+}
+
+function updatePreview() {
+    const preview = document.getElementById("preview");
+    const type = getBgType();
+    if (type === "color") {
+        preview.style.background = document.getElementById("bg-color-picker").value;
+        preview.style.setProperty("--preview-overlay", "transparent");
+    } else if (type === "image") {
+        const url = document.getElementById("bg-url").value;
+        preview.style.background = url ? `url("${url}") center/cover no-repeat` : "";
+        preview.style.setProperty("--preview-overlay", getOverlayColor());
+    } else {
+        preview.style.background = "";
+        preview.style.setProperty("--preview-overlay", "transparent");
+    }
+}
+
+function applyLive() {
+    const root = document.documentElement;
+    root.style.setProperty("--tone1", hexToRgb(document.getElementById("tone1-picker").value), "important");
+    root.style.setProperty("--tone2", hexToRgb(document.getElementById("tone2-picker").value), "important");
+    root.style.setProperty("--tone3", hexToRgb(document.getElementById("tone3-picker").value), "important");
+    updatePreview();
+}
+
+function saveSettings() {
+    const type = getBgType();
+    const cfg = {
+        tone1: hexToRgb(document.getElementById("tone1-picker").value),
+        tone2: hexToRgb(document.getElementById("tone2-picker").value),
+        tone3: hexToRgb(document.getElementById("tone3-picker").value),
+        bgType: type,
+        bgColor: type === "color" ? document.getElementById("bg-color-picker").value : null,
+        bgImage: type === "image" ? document.getElementById("bg-url").value : null,
+        overlayColor: document.getElementById("overlay-color").value,
+        overlayOpacity: document.getElementById("overlay-opacity").value,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    fetch("/theme_customizer/save", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(cfg)
+    });
+    const status = document.getElementById("save-status");
+    status.style.opacity = "1";
+    setTimeout(() => status.style.opacity = "0", 1800);
+}
+
+function resetSettings() {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+}
+
+function populatePickers(cfg) {
+    if (!cfg || !Object.keys(cfg).length) return;
+    if (cfg.tone1) document.getElementById("tone1-picker").value = rgbToHex(cfg.tone1);
+    if (cfg.tone2) document.getElementById("tone2-picker").value = rgbToHex(cfg.tone2);
+    if (cfg.tone3) document.getElementById("tone3-picker").value = rgbToHex(cfg.tone3);
+    if (cfg.bgType) {
+        const radio = document.querySelector(`input[name="bg-type"][value="${cfg.bgType}"]`);
+        if (radio) radio.checked = true;
+    }
+    if (cfg.bgColor) document.getElementById("bg-color-picker").value = cfg.bgColor;
+    if (cfg.bgImage) document.getElementById("bg-url").value = cfg.bgImage;
+    if (cfg.overlayColor) document.getElementById("overlay-color").value = cfg.overlayColor;
+    if (cfg.overlayOpacity != null) {
+        document.getElementById("overlay-opacity").value = cfg.overlayOpacity;
+        document.getElementById("overlay-opacity-val").textContent = parseFloat(cfg.overlayOpacity).toFixed(2);
+    }
+    toggleBgSections();
+    updatePreview();
+}
+
+// Load from server; if tones are missing, fill them from the active theme
+fetch("/theme_customizer/load")
+    .then(r => r.json())
+    .then(cfg => {
+        cfg = (cfg && Object.keys(cfg).length) ? cfg : {};
+        if (!cfg.tone1 || !cfg.tone2 || !cfg.tone3) {
+            return fetch("/load_settings")
+                .then(r => r.json())
+                .then(settings => {
+                    const t = settings.theme || {};
+                    cfg.tone1 = cfg.tone1 || t.tone_1 || "18, 18, 24";
+                    cfg.tone2 = cfg.tone2 || t.tone_2 || "32, 34, 48";
+                    cfg.tone3 = cfg.tone3 || t.tone_3 || "200, 210, 230";
+                    return cfg;
+                });
+        }
+        return cfg;
+    })
+    .then(cfg => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+        populatePickers(cfg);
+    })
+    .catch(() => {
+        try { populatePickers(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}")); } catch(_) {}
+    });
+
+function toggleBgSections() {
+    const type = getBgType();
+    document.getElementById("bg-color-section").style.display = type === "color" ? "block" : "none";
+    document.getElementById("bg-image-section").style.display = type === "image" ? "block" : "none";
+    updatePreview();
+}
+
+document.querySelectorAll('input[name="bg-type"]').forEach(r =>
+    r.addEventListener("change", toggleBgSections));
+
+document.getElementById("bg-url").addEventListener("input", updatePreview);
+document.getElementById("bg-color-picker").addEventListener("input", updatePreview);
+document.getElementById("overlay-color").addEventListener("input", updatePreview);
+document.getElementById("overlay-opacity").addEventListener("input", function() {
+    document.getElementById("overlay-opacity-val").textContent = parseFloat(this.value).toFixed(2);
+    updatePreview();
+});
+
+["tone1-picker","tone2-picker","tone3-picker"].forEach(id =>
+    document.getElementById(id).addEventListener("input", applyLive));
+
+// File upload → convert to data URL
+document.getElementById("bg-file").addEventListener("change", function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById("bg-url").value = e.target.result;
+        updatePreview();
+    };
+    reader.readAsDataURL(file);
+});
+</script>
+</body>
+</html>

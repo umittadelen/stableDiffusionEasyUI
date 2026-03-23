@@ -1,4 +1,3 @@
-/__pycache__
 /generated
 /models
 /Civitai-api.key
@@ -19,3 +18,4 @@
 /.vscode
 /.setup_done
 /.gitattributes
+__pycache__

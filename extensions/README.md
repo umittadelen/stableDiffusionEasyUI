@@ -82,6 +82,22 @@ def on_image_done(image_path, seed, prompt, **kwargs):
 
 `GET /extensions` returns a JSON array of all discovered extensions and their status.
 
+## Adding a button to the main action bar
+
+The main page exposes a global `registerExtensionButton(label, url, svgString)` function.
+Call it from a script you inject via `app.after_request`:
+
+```javascript
+// inside your injected <script> or .js file
+window.registerExtensionButton(
+    "My Tool",           // button label
+    "/my_extension/",    // URL opened in a new tab
+    `<svg .../>`,        // optional SVG icon string (or empty string)
+);
+```
+
+Buttons appear in a dedicated extension slot in the action bar, separated from the built-in buttons by a divider. The function is a no-op on pages that don't have the slot (settings, metadata, etc.).
+
 ## Example extension
 
 See `extensions/example_extension/` for a fully commented reference implementation.

@@ -1,11 +1,11 @@
 <div align="center">
 
-# EasyUI V2.2.0
+# EasyUI V2.2.1
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.2.0-blue)
+![Version](https://img.shields.io/badge/version-2.2.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
 > [!NOTE]
@@ -13,11 +13,22 @@
 
 ---
 
-## What's New in V2.2.0
+## What's New in V2.2.1
 
+- **Theme Customizer extension** — New built-in extension to set a custom background image or solid color, with overlay tint color and opacity controls. Colors for all three UI tones are adjustable via color pickers. Settings persist in `settings.json` and are applied instantly on every page load.
+- **Extension action bar buttons** — Extensions can now register a button in the main action bar via `window.registerExtensionButton(label, url, icon)`, making extension UIs directly accessible from the main page.
+
+<details>
+<summary>
+
+## Previous Versions</summary>
+
+**V2.2.0**
 - **Async NSFW scoring** — Scores are computed in a background thread after generation and persisted in PNG metadata and server cache. The `/status` response includes `nsfw_score` per image so blurring applies immediately without blocking generation.
 - **NoobAI model support** — NoobAI is now available as a selectable model type in the UI.
 - **Improved exception handling** — Manual stops no longer produce misleading error messages. The generator checks `generation_stopped` before setting error status, preventing duplicate or incorrect updates.
+
+</details>
 
 ---
 
@@ -34,6 +45,7 @@
 | NSFW Blur | Auto-detects and blurs NSFW content in the gallery (hover to reveal) |
 | Mobile Layout | Responsive UI that works on small screens |
 | Extension System | Drop a folder into `extensions/` to add new features |
+| Theme Customizer | Custom background image, solid color, overlay tint, and UI color controls |
 | Drop to Fill | Drag & drop any EasyUI-generated image to restore its generation parameters |
 
 ---
