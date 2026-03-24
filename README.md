@@ -1,13 +1,13 @@
 <div align="center">
 
-# EasyUI V2.3.1
+# EasyUI V2.5.5
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.3.1-blue)
+![Version](https://img.shields.io/badge/version-2.5.5-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -16,19 +16,25 @@
 
 ---
 
+## What's New in V2.5.5
 
-## What's New in V2.4.1
-
-- **Unified custom dropdown UI** — Example Prompts, Styles, and Sizes now use a consistent, modern custom dropdown for improved UX.
-- **Improved extension isolation** — Extension CSS and JS are more robust against global overrides, ensuring reliable UI behavior.
-- **Favorites extension improvements** — Star icons are robustly injected, sized correctly, and have enhanced hover effects. User favorites are stored in a gitignored config file.
-- **General** — Extension Manager, Image History, Booru Tag Helper, and Glass blur control as in previous versions.
-
+- **New Terminal extension** — Live server output (stdout + stderr) viewable directly in the UI via a new action bar button.
+- **Favorites extension** — Star images to save as favorites, with robust UI, persistent storage, and improved hover/interaction effects.
+- **Theme system improvements** — More robust theme loading and error handling for custom UI colors and backgrounds.
+- **Extension system improvements** — Improved isolation for extension CSS/JS, more reliable Extension Manager, and better extension load order handling.
+- **General bug fixes and UI polish** — Various UI/UX improvements, more consistent dropdowns, and major fixes throughout the app.
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.4.1**
+
+- **Unified custom dropdown UI** — Example Prompts, Styles, and Sizes now use a consistent, modern custom dropdown for improved UX.
+- **Improved extension isolation** — Extension CSS and JS are more robust against global overrides, ensuring reliable UI behavior.
+- **Favorites extension improvements** — Star icons are robustly injected, sized correctly, and have enhanced hover effects. User favorites are stored in a gitignored config file.
+- **General** — Extension Manager, Image History, Booru Tag Helper, and Glass blur control as in previous versions.
 
 **V2.3.1**
 - **Extension Manager** — Built-in manager at `/extension_manager/` to enable/disable extensions, control load order with ▲/▼ buttons, and clone new extensions directly from a Git URL. The manager itself is always loaded first and cannot be disabled.
