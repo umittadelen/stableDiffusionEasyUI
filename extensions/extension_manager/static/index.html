@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Extension Manager</title>
-    <link rel="stylesheet" href="/static/css/styles-new.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
     <style>
         body { padding: 2rem; }
         h1 { margin-bottom: 1.5rem; }
@@ -80,6 +80,30 @@
         .toggle-btn.enabled  { color: #8f8; }
         .toggle-btn.disabled { color: #f88; }
 
+        .ext-card.order-violation {
+            border: 2px solid #f55;
+            background: rgba(255, 60, 60, .08);
+        }
+        .order-violation-msg {
+            font-size: .82rem;
+            font-weight: 600;
+            color: #f77;
+            margin-top: .3rem;
+            padding: .2rem .5rem;
+            background: rgba(255,60,60,.15);
+            border-radius: 4px;
+            display: inline-block;
+        }
+        #violation-banner {
+            display: none;
+            background: rgba(255,60,60,.15);
+            border: 1px solid rgba(255,60,60,.5);
+            border-radius: 8px;
+            padding: .7rem 1rem;
+            margin-bottom: 1rem;
+            font-size: .88rem;
+            color: #f99;
+        }
         .restart-note { margin-top: 1.5rem; font-size: .82rem; opacity: .55; }
     </style>
 </head>
@@ -99,9 +123,11 @@
         <div id="clone-msg"></div>
     </div>
 
+    <div id="violation-banner">⚠ Some extensions are out of order — move them so each extension appears after its required dependencies, then restart.</div>
     <div id="ext-list"></div>
 
     <p class="restart-note">⚠ Enable/disable and order changes take effect after restarting the server.</p>
+    <button class="btn-danger" style="margin-top:.75rem;" onclick="restartServer()">↺ Restart Server</button>
 
     <script>
         function move(card, dir) {
@@ -114,6 +140,39 @@
             saveOrder();
         }
 
+        function checkViolations() {
+            const cards = [...document.getElementById("ext-list").children];
+            const folders = cards.map(c => c.dataset.folder);
+            let anyViolation = false;
+
+            cards.forEach((card, i) => {
+                const requires = JSON.parse(card.dataset.requiresAfter || "[]");
+                const forceDisabled = card.dataset.forceDisabled === "true";
+                const unmet = JSON.parse(card.dataset.unmetRequires || "[]");
+
+                const orderViolations = requires.filter(dep => {
+                    const depIdx = folders.indexOf(dep);
+                    return depIdx !== -1 && depIdx > i;
+                });
+
+                const existing = card.querySelector(".order-violation-msg");
+                if (existing) existing.remove();
+                card.classList.remove("order-violation");
+
+                const problems = forceDisabled ? unmet : orderViolations;
+                if (problems.length) {
+                    anyViolation = true;
+                    card.classList.add("order-violation");
+                    const msg = document.createElement("div");
+                    msg.className = "order-violation-msg";
+                    msg.textContent = (forceDisabled ? "🔒 blocked — not loaded: " : "⚠ must load after: ") + problems.join(", ");
+                    card.querySelector(".ext-info").appendChild(msg);
+                }
+            });
+
+            document.getElementById("violation-banner").style.display = anyViolation ? "block" : "none";
+        }
+
         function updateAll() {
             const cards = [...document.getElementById("ext-list").children];
             cards.forEach((c, i) => {
@@ -121,6 +180,7 @@
                 c.querySelector(".up-btn").disabled   = i === 0;
                 c.querySelector(".down-btn").disabled = i === cards.length - 1;
             });
+            checkViolations();
         }
 
         async function saveOrder() {
@@ -137,6 +197,9 @@
             const card = document.createElement("div");
             card.className = "ext-card glass-panel" + (ext.enabled ? "" : " disabled");
             card.dataset.folder = ext.folder;
+            card.dataset.requiresAfter = JSON.stringify(ext.requires_after || []);
+            card.dataset.forceDisabled = ext.force_disabled ? "true" : "false";
+            card.dataset.unmetRequires = JSON.stringify(ext.unmet_requires || []);
 
             const btns = document.createElement("div");
             btns.className = "order-btns";
@@ -186,6 +249,13 @@
                 desc.textContent = ext.description;
                 info.appendChild(desc);
             }
+            if (ext.requires_after && ext.requires_after.length) {
+                const req = document.createElement("div");
+                req.className = "ext-meta";
+                req.style.opacity = ".55";
+                req.textContent = "loads after: " + ext.requires_after.join(", ");
+                info.appendChild(req);
+            }
             if (ext.error) {
                 const err = document.createElement("div");
                 err.className = "ext-error";
@@ -197,6 +267,20 @@
             btn.className = "toggle-btn " + (ext.enabled ? "enabled" : "disabled");
             btn.textContent = ext.enabled ? "Enabled" : "Disabled";
             btn.onclick = () => toggle(ext.folder, btn, card);
+
+            if (ext.force_disabled) {
+                card.classList.add("disabled");
+                const lock = document.createElement("span");
+                lock.className = "toggle-btn disabled";
+                lock.style.cursor = "default";
+                lock.title = "Force-disabled: unmet requirements";
+                lock.textContent = "🔒 Blocked";
+                card.appendChild(btns);
+                card.appendChild(badge);
+                card.appendChild(info);
+                card.appendChild(lock);
+                return card;
+            }
 
             card.appendChild(btns);
             card.appendChild(badge);
@@ -212,6 +296,7 @@
             list.innerHTML = "";
             if (!items.length) { list.textContent = "No extensions found."; return; }
             items.forEach((ext, i) => list.appendChild(makeCard(ext, i, items.length)));
+            checkViolations();
         }
 
         async function toggle(folder, btn, card) {
@@ -248,6 +333,33 @@
                 document.getElementById("clone-url").value = "";
                 load();
             }
+        }
+
+        async function restartServer() {
+            let generating = false;
+            try {
+                const s = await fetch("/status", { cache: "no-store" });
+                const d = await s.json();
+                generating = d.gconfig?.generating || false;
+            } catch(_) {}
+
+            if (generating) {
+                const stop = confirm("A batch is currently generating.\nStop it and restart the server?");
+                if (!stop) return;
+                await fetch("/stop", { method: "POST" });
+                await new Promise(r => setTimeout(r, 800));
+            }
+
+            document.body.style.opacity = ".4";
+            document.body.style.pointerEvents = "none";
+            try { await fetch("/restart", { method: "POST" }); } catch(_) {}
+            const poll = setInterval(async () => {
+                try {
+                    await fetch("/status", { cache: "no-store" });
+                    clearInterval(poll);
+                    location.reload();
+                } catch(_) {}
+            }, 1000);
         }
 
         load();

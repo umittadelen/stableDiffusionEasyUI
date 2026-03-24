@@ -7,7 +7,7 @@
         
         <script src="https://cdn.jsdelivr.net/gh/seikichi/tiff.js@master/tiff.min.js"></script>
         
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles-new.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     </head>
     <body id="drop-area" class="drop-area">
 
@@ -57,10 +57,12 @@
                     <section class="form-section">
                         <h2 class="section-title">Prompt</h2>
 
-                        <label for="example_prompt" title="Choose from a list of example prompts.">Example Prompts</label>
-                        <select id="example_prompt" name="example_prompt">
-                            <option value=""></option>
-                        </select>
+
+                        <label for="example_prompt_custom" title="Choose from a list of example prompts.">Example Prompts</label>
+                        <div id="example_prompt_custom" class="custom-dropdown" tabindex="0">
+                            <span class="custom-dropdown-selected" id="example_prompt_selected">Select an example...</span>
+                            <div class="custom-dropdown-list" id="example_prompt_list" style="display:none;"></div>
+                        </div>
 
                         <div id="prompt-div" class="input-div">
                             <label for="prompt" title="Enter the main prompt that describes the image you want to generate.">Prompt <span class="token-badge" id="prompt-token-counter" onclick="getTokenCount('prompt', 'prompt-token-counter')">tokens</span></label>
@@ -72,10 +74,11 @@
                             <textarea id="negative_prompt" name="negative_prompt">lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], extra ears, nsfw, explicit</textarea>
                         </div>
 
-                        <label for="example_style" title="Choose from a list of example prompts.">Example Styles</label>
-                        <select id="example_style" name="example_style">
-                            <option value=""></option>
-                        </select>
+                        <label for="example_style_custom" title="Choose from a list of example styles.">Example Styles</label>
+                        <div id="example_style_custom" class="custom-dropdown" tabindex="0">
+                            <span class="custom-dropdown-selected" id="example_style_selected">Select a style...</span>
+                            <div class="custom-dropdown-list" id="example_style_list" style="display:none;"></div>
+                        </div>
 
                         <div id="style-div" class="input-div">
                             <label for="style" title="Enter the style prompt (added to end of prompt when generating)">Style Prompt</label>
@@ -91,8 +94,11 @@
 
                         <div class="param-grid">
                             <div id="size-select">
-                                <label for="example_size" title="Choose from a list of sizes.">Size</label>
-                                <select id="example_size" name="example_size"></select>
+                                <label for="example_size_custom" title="Choose from a list of sizes.">Size</label>
+                                <div id="example_size_custom" class="custom-dropdown" tabindex="0">
+                                    <span class="custom-dropdown-selected" id="example_size_selected">Select a size...</span>
+                                    <div class="custom-dropdown-list" id="example_size_list" style="display:none;"></div>
+                                </div>
 
                                 <div class="param-row">
                                     <div>

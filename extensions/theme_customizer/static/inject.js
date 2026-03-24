@@ -2,7 +2,7 @@
     const STORAGE_KEY = "tc_settings";
 
     // Global helper for any extension to add a button to the action bar
-    window.registerExtensionButton = function(label, url, icon) {
+    window.registerExtensionButton = function(label, url, icon, onClick) {
         const slot = document.getElementById("ext-buttons");
         if (!slot) return;
         if (!slot.hasChildNodes()) {
@@ -16,15 +16,16 @@
         container.className = "btn-container";
         if (icon) {
             const iconWrap = document.createElement("span");
-            iconWrap.innerHTML = icon; // icon is always a hardcoded SVG string from trusted extension code
+            iconWrap.innerHTML = icon;
             container.appendChild(iconWrap.firstElementChild || iconWrap);
         }
         const labelSpan = document.createElement("span");
         labelSpan.textContent = label;
         container.appendChild(labelSpan);
         btn.appendChild(container);
-        btn.onclick = () => location.href = url;
+        btn.onclick = onClick ? onClick : () => { if (url) location.href = url; };
         slot.appendChild(btn);
+        return btn;
     };
 
     // Register the theme customizer button

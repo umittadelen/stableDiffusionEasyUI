@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image History</title>
+    <title>Favorites</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/css/styles.css">
     <script>
@@ -21,7 +21,6 @@
         body { min-height: 100dvh; padding: 24px 16px; }
         h1 { margin-bottom: 16px; }
         #toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-        #search { flex: 1; min-width: 180px; margin: 0; }
         #count { font-size: 0.85em; opacity: 0.55; white-space: nowrap; }
         #gallery {
             display: grid;
@@ -64,70 +63,52 @@
             transition: opacity 0.15s;
         }
         .card:hover .del { opacity: 1; }
-        #sentinel { height: 40px; }
         #empty { text-align: center; opacity: 0.4; margin-top: 60px; display: none; }
-
     </style>
 </head>
 <body>
-<h1>Image History</h1>
+<h1>⭐ Favorites</h1>
 
 <div id="toolbar" class="glass-panel" style="padding:12px 16px;">
-    <input type="text" id="search" placeholder="Search prompt or model…">
     <span id="count"></span>
     <button class="btn-danger" onclick="clearAll()">Clear All</button>
 </div>
 
 <div id="gallery"></div>
-<div id="empty">No images in history yet.</div>
-<div id="sentinel"></div>
+<div id="empty">No favorites yet — star an image in the gallery or history.</div>
 
-<script src="/image_history/inject.js"></script>
+<script src="/favorites/inject.js"></script>
 <script>
-let page = 0, loading = false, exhausted = false, query = "";
-
-function load(reset) {
-    if (loading || exhausted) return;
-    loading = true;
-    if (reset) {
-        page = 0; exhausted = false;
-        document.getElementById("gallery").innerHTML = "";
-        document.getElementById("empty").style.display = "none";
-    }
-    fetch(`/image_history/list?page=${page}&q=${encodeURIComponent(query)}`)
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById("count").textContent = `${data.total} image${data.total !== 1 ? "s" : ""}`;
-            if (data.items.length === 0 && page === 0)
-                document.getElementById("empty").style.display = "block";
-            data.items.forEach(addCard);
-            if ((page + 1) * data.pageSize >= data.total) exhausted = true;
-            page++;
-            loading = false;
-        })
-        .catch(() => { loading = false; });
+async function load() {
+    const res  = await fetch("/favorites/list");
+    const favs = await res.json();
+    const gallery = document.getElementById("gallery");
+    gallery.innerHTML = "";
+    document.getElementById("count").textContent = `${favs.length} image${favs.length !== 1 ? "s" : ""}`;
+    if (!favs.length) { document.getElementById("empty").style.display = "block"; return; }
+    document.getElementById("empty").style.display = "none";
+    favs.forEach(addCard);
 }
 
 function addCard(entry) {
     const card = document.createElement("div");
     card.className = "card";
-    card.dataset.filename = entry.filename;
 
     const img = document.createElement("img");
-    img.src = `/image_history/img/${entry.filename}`;
+    img.src = `/favorites/img/${entry.filename}`;
     img.loading = "lazy";
-    img.alt = entry.prompt || "";
-    img.onclick = () => window.location.href = `/metadata?url=${window.location.origin}/image_history/img/${entry.filename}`;
+    img.alt = entry.filename;
+    img.onclick = () => window.location.href = `/metadata?url=${window.location.origin}/favorites/img/${entry.filename}`;
 
     const info = document.createElement("div");
     info.className = "info";
-    info.textContent = entry.prompt || entry.filename;
+    info.textContent = entry.filename;
 
     const del = document.createElement("button");
     del.className = "del";
-    del.title = "Delete";
+    del.title = "Remove from favorites";
     del.textContent = "✕";
-    del.onclick = (e) => { e.stopPropagation(); deleteEntry(entry.filename, card); };
+    del.onclick = (e) => { e.stopPropagation(); removeEntry(entry.filename, card); };
 
     card.appendChild(img);
     card.appendChild(info);
@@ -135,42 +116,30 @@ function addCard(entry) {
     document.getElementById("gallery").appendChild(card);
 }
 
-function deleteEntry(filename, card) {
-    fetch("/image_history/delete", {
+async function removeEntry(filename, card) {
+    await fetch("/favorites/remove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename })
-    }).then(() => {
-        card.remove();
-        const remaining = document.getElementById("gallery").children.length;
-        document.getElementById("count").textContent = `${remaining} image${remaining !== 1 ? "s" : ""}`;
-        if (remaining === 0) document.getElementById("empty").style.display = "block";
     });
+    card.remove();
+    const n = document.getElementById("gallery").children.length;
+    document.getElementById("count").textContent = `${n} image${n !== 1 ? "s" : ""}`;
+    if (!n) document.getElementById("empty").style.display = "block";
 }
 
 async function clearAll() {
-    if (!confirm("Delete entire image history? This cannot be undone.")) return;
-    await fetch("/image_history/clear", { method: "POST" });
-    document.getElementById("gallery").innerHTML = "";
-    document.getElementById("count").textContent = "0 images";
-    document.getElementById("empty").style.display = "block";
-    exhausted = false; page = 0;
+    if (!confirm("Remove all favorites? The files will be deleted.")) return;
+    const favs = await (await fetch("/favorites/list")).json();
+    await Promise.all(favs.map(e => fetch("/favorites/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: e.filename })
+    })));
+    load();
 }
 
-// Search
-let _searchTimer;
-document.getElementById("search").addEventListener("input", function() {
-    clearTimeout(_searchTimer);
-    _searchTimer = setTimeout(() => { query = this.value; load(true); }, 300);
-});
-
-// Infinite scroll
-const observer = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting) load(false);
-}, { rootMargin: "200px" });
-observer.observe(document.getElementById("sentinel"));
-
-load(true);
+load();
 </script>
 </body>
 </html>

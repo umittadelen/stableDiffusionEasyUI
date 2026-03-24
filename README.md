@@ -4,26 +4,37 @@
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
+<div align="center">
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
 ![Version](https://img.shields.io/badge/version-2.3.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+</div>
 
 > [!NOTE]
 > The `git clone` version is always more up-to-date than the official releases, but may be unstable and does not include embedded Python.
 
 ---
 
-## What's New in V2.3.1
 
-- **Extension Manager** — Built-in manager at `/extension_manager/` to enable/disable extensions, control load order with ▲/▼ buttons, and clone new extensions directly from a Git URL. The manager itself is always loaded first and cannot be disabled.
-- **Image History extension** — Every generated image is automatically copied to a persistent history that survives **Clear**. Gallery UI with search, infinite scroll, and per-image delete. Clicking an image opens the existing metadata viewer.
-- **Booru Tag Helper extension** — Live tag autocomplete in the prompt and negative prompt fields. Queries the Danbooru API as you type and shows suggestions sorted by post count. Keyboard navigable (↑/↓, Enter/Tab, Escape).
-- **Glass blur control** — `--glass-blur` CSS variable is now adjustable via a slider in the Theme Customizer (0–40px).
+## What's New in V2.4.1
+
+- **Unified custom dropdown UI** — Example Prompts, Styles, and Sizes now use a consistent, modern custom dropdown for improved UX.
+- **Improved extension isolation** — Extension CSS and JS are more robust against global overrides, ensuring reliable UI behavior.
+- **Favorites extension improvements** — Star icons are robustly injected, sized correctly, and have enhanced hover effects. User favorites are stored in a gitignored config file.
+- **General** — Extension Manager, Image History, Booru Tag Helper, and Glass blur control as in previous versions.
+
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.3.1**
+- **Extension Manager** — Built-in manager at `/extension_manager/` to enable/disable extensions, control load order with ▲/▼ buttons, and clone new extensions directly from a Git URL. The manager itself is always loaded first and cannot be disabled.
+- **Image History extension** — Every generated image is automatically copied to a persistent history that survives **Clear**. Gallery UI with search, infinite scroll, and per-image delete. Clicking an image opens the existing metadata viewer.
+- **Booru Tag Helper extension** — Live tag autocomplete in the prompt and negative prompt fields. Queries the Danbooru API as you type and shows suggestions sorted by post count. Keyboard navigable (↑/↓, Enter/Tab, Escape).
+- **Glass blur control** — `--glass-blur` CSS variable is now adjustable via a slider in the Theme Customizer (0–40px).
 
 **V2.2.1**
 - **Theme Customizer extension** — New built-in extension to set a custom background image or solid color, with overlay tint color and opacity controls. Colors for all three UI tones are adjustable via color pickers. Settings persist in `settings.json` and are applied instantly on every page load.

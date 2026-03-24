@@ -84,22 +84,82 @@ function populateModels(data, select) {
     });
 }
 
-function populateExamplePrompts(data, select) {
+function populateExamplePrompts(data) {
+    const dropdown = document.getElementById('example_prompt_custom');
+    const list = document.getElementById('example_prompt_list');
+    const selected = document.getElementById('example_prompt_selected');
+    const promptTextareaElement = document.getElementById('prompt');
+    list.innerHTML = '';
     data.examples.forEach(prompt => {
-        const option = document.createElement('option');
-        option.value = prompt;
-        option.textContent = prompt;
-        select.appendChild(option);
+        const item = document.createElement('div');
+        item.className = 'custom-dropdown-item';
+        item.textContent = prompt;
+        item.tabIndex = 0;
+        item.addEventListener('click', () => {
+            selected.textContent = prompt;
+            promptTextareaElement.value = prompt;
+            list.style.display = 'none';
+            dropdown.classList.remove('open');
+        });
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                item.click();
+            }
+        });
+        list.appendChild(item);
     });
+    // Dropdown toggle
+    dropdown.onclick = function(e) {
+        if (e.target === selected || e.target === dropdown) {
+            list.style.display = list.style.display === 'none' ? 'block' : 'none';
+            dropdown.classList.toggle('open');
+        }
+    };
+    // Close on blur
+    dropdown.onblur = function() {
+        list.style.display = 'none';
+        dropdown.classList.remove('open');
+    };
 }
 
-function populateExampleSizes(data, select) {
+function populateExampleSizes(data) {
+    const dropdown = document.getElementById('example_size_custom');
+    const list = document.getElementById('example_size_list');
+    const selected = document.getElementById('example_size_selected');
+    const widthInputElement = document.getElementById('width');
+    const heightInputElement = document.getElementById('height');
+    list.innerHTML = '';
     Object.entries(data).forEach(([sizeName, sizeDimensions]) => {
-        const option = document.createElement('option');
-        option.value = sizeDimensions.join('x'); // Format as "width x height"
-        option.textContent = sizeName; // Display the size name
-        select.appendChild(option);
+        const item = document.createElement('div');
+        item.className = 'custom-dropdown-item';
+        item.textContent = sizeName;
+        item.tabIndex = 0;
+        item.addEventListener('click', () => {
+            selected.textContent = sizeName;
+            widthInputElement.value = sizeDimensions[0];
+            heightInputElement.value = sizeDimensions[1];
+            list.style.display = 'none';
+            dropdown.classList.remove('open');
+        });
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                item.click();
+            }
+        });
+        list.appendChild(item);
     });
+    // Dropdown toggle
+    dropdown.onclick = function(e) {
+        if (e.target === selected || e.target === dropdown) {
+            list.style.display = list.style.display === 'none' ? 'block' : 'none';
+            dropdown.classList.toggle('open');
+        }
+    };
+    // Close on blur
+    dropdown.onblur = function() {
+        list.style.display = 'none';
+        dropdown.classList.remove('open');
+    };
 }
 
 function populateSchedulers(data, select) {
@@ -111,13 +171,42 @@ function populateSchedulers(data, select) {
     });
 }
 
-function populateStyles(data, select) {
+function populateStyles(data) {
+    const dropdown = document.getElementById('example_style_custom');
+    const list = document.getElementById('example_style_list');
+    const selected = document.getElementById('example_style_selected');
+    const styleTextareaElement = document.getElementById('style');
+    list.innerHTML = '';
     Object.entries(data).forEach(([name, prompt]) => {
-        const option = document.createElement('option');
-        option.value = prompt;
-        option.textContent = name;
-        select.appendChild(option);
+        const item = document.createElement('div');
+        item.className = 'custom-dropdown-item';
+        item.textContent = name;
+        item.tabIndex = 0;
+        item.addEventListener('click', () => {
+            selected.textContent = name;
+            styleTextareaElement.value = prompt;
+            list.style.display = 'none';
+            dropdown.classList.remove('open');
+        });
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                item.click();
+            }
+        });
+        list.appendChild(item);
     });
+    // Dropdown toggle
+    dropdown.onclick = function(e) {
+        if (e.target === selected || e.target === dropdown) {
+            list.style.display = list.style.display === 'none' ? 'block' : 'none';
+            dropdown.classList.toggle('open');
+        }
+    };
+    // Close on blur
+    dropdown.onblur = function() {
+        list.style.display = 'none';
+        dropdown.classList.remove('open');
+    };
 }
 
 fetch("/scan_model_configs")
@@ -648,10 +737,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.title = 'EasyUI';
 
     // Load data from JSON files --------------------->
-    await loadJsonAndPopulateSelect('/static/json/examplePrompts.json', 'example_prompt', populateExamplePrompts);
-    await loadJsonAndPopulateSelect('/static/json/dimensions.json', 'example_size', populateExampleSizes);
+    // Custom dropdown for example prompts
+    const examplePromptsData = await fetch('/static/json/examplePrompts.json').then(r => r.json());
+    populateExamplePrompts(examplePromptsData);
+    const dimensionsData = await fetch('/static/json/dimensions.json').then(r => r.json());
+    populateExampleSizes(dimensionsData);
     await loadJsonAndPopulateSelect('/static/json/schedulers.json', 'scheduler', populateSchedulers);
-    await loadJsonAndPopulateSelect('/static/json/styleprompts.json', 'example_style', populateStyles);
+    const stylePromptsData = await fetch('/static/json/styleprompts.json').then(r => r.json());
+    populateStyles(stylePromptsData);
 
     await loadFormData();
 
@@ -826,12 +919,7 @@ function updateFormFields(metadata) {
 
 //TODO handle prompt example change
 
-const promptSelectElement = document.getElementById('example_prompt');
-const promptTextareaElement = document.getElementById('prompt');
-
-promptSelectElement.addEventListener('change', function() {
-    promptTextareaElement.value = promptSelectElement.value;
-});
+// Custom dropdown replaces default select for example prompts
 
 //TODO handle style example change
 
@@ -855,21 +943,7 @@ modelSelectElement.addEventListener('change', function() {
 
 //TODO handle pre dimension change
 
-const exampleSizeSelectElement = document.getElementById('example_size');
-const widthInputElement = document.getElementById('width');
-const heightInputElement = document.getElementById('height');
-
-exampleSizeSelectElement.addEventListener('change', function() {
-    const selectedOption = exampleSizeSelectElement.options[exampleSizeSelectElement.selectedIndex];
-
-    if (selectedOption) {
-        const dimensions = selectedOption.value.split('x'); // Assuming the value format is "{width}x{height}"
-        if (dimensions.length === 2) {
-            widthInputElement.value = dimensions[0]; // Set width
-            heightInputElement.value = dimensions[1]; // Set height
-        }
-    }
-});
+// No longer needed: handled by custom dropdown
 
 // Optionally, set the initial values based on the first option in the select
 if (exampleSizeSelectElement.options.length > 0) {

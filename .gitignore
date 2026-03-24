@@ -1,3 +1,11 @@
+# Additional extension user configs
+extensions/favorites/favorites.json
+extensions/image_history/history.json
+extensions/theme_customizer/static/json/settings.json
+extensions/theme_customizer/static/backgrounds/
+# Extension user configs (do not commit user data)
+extensions/favorites/favorites/
+extensions/image_history/static/history/
 /generated
 /models
 /Civitai-api.key
@@ -25,3 +33,5 @@ __pycache__
 /static/tc_bg
 /.amazonq
 /python-3.10.6
+/extensions/favorites/favorites
+/extensions/image_history/static/history

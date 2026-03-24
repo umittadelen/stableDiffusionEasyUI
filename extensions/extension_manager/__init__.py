@@ -61,13 +61,16 @@ def setup(app, gconfig, hooks, api):
         for folder in folders:
             reg = extension_loader._registry.get(folder, {})
             items.append({
-                "folder":      folder,
-                "name":        reg.get("name", folder),
-                "version":     reg.get("version", ""),
-                "description": reg.get("description", ""),
-                "loaded":      reg.get("loaded", False),
-                "error":       reg.get("error", ""),
-                "enabled":     folder not in disabled,
+                "folder":         folder,
+                "name":           reg.get("name", folder),
+                "version":        reg.get("version", ""),
+                "description":    reg.get("description", ""),
+                "loaded":         reg.get("loaded", False),
+                "error":          reg.get("error", ""),
+                "enabled":        folder not in disabled,
+                "requires_after": reg.get("requires_after", []),
+                "force_disabled": reg.get("force_disabled", False),
+                "unmet_requires": reg.get("unmet_requires", []),
             })
         return jsonify(items)
 
