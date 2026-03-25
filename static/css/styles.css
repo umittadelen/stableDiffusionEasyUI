@@ -453,18 +453,18 @@ button .btn-container svg {
 }
 
 #images {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
+    justify-content: center;
 }
 
 #images img {
     border: 1px solid rgba(var(--tone3), 0.15);
     border-radius: var(--border-radius-sm);
-    width: 20vw;
-    min-width: 180px;
-    max-width: 98vw;
+    width: 100%;
+    min-width: unset;
+    max-width: 100%;
     height: auto;
     display: block;
     transition: var(--transition);

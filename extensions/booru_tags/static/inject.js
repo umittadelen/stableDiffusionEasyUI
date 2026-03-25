@@ -108,12 +108,26 @@
 
         function insert(tagName) {
             const { start, end } = getWordBounds(ta);
-            const before = ta.value.slice(0, start);
-            const after  = ta.value.slice(end);
-            // ensure comma+space separator after inserted tag
-            const suffix = after.trimStart().startsWith(",") ? "" : ", ";
-            ta.value = before + tagName + suffix + after.trimStart().replace(/^,\s*/, "");
-            ta.selectionStart = ta.selectionEnd = (before + tagName + suffix).length;
+            let before = ta.value.slice(0, start).replace(/\s*$/, "");
+            let after  = ta.value.slice(end).replace(/^\s*/, "");
+
+            // Always ensure ', ' before unless at start
+            if (before.length > 0 && !before.endsWith(", ")) {
+                before = before.replace(/,?\s*$/, ", ");
+            }
+
+            // Always ensure ', ' after unless at end
+            if (after.length > 0 && !after.startsWith(", ")) {
+                after = after.replace(/^,?\s*/, ", ");
+            }
+
+            ta.value = before + tagName + after;
+            // Place cursor right after the inserted tag and the ", " if present
+            let cursorPos = (before + tagName).length;
+            if (after.startsWith(", ")) {
+                cursorPos += 2;
+            }
+            ta.selectionStart = ta.selectionEnd = cursorPos;
             ta.dispatchEvent(new Event("input"));
             hide();
             ta.focus();

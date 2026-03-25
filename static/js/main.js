@@ -469,49 +469,6 @@ function toggleStatus(event) {
     statusBox.classList.toggle('minimized');
 }
 
-dragElement(document.getElementById("status"));
-
-function dragElement(elmnt) {
-  var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-  if (document.getElementById(elmnt.id + "header")) {
-    // if present, the header is where you move the DIV from:
-    document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
-  } else {
-    // otherwise, move the DIV from anywhere inside the DIV:
-    elmnt.onmousedown = dragMouseDown;
-  }
-
-  function dragMouseDown(e) {
-    e = e || window.event;
-    e.preventDefault();
-    // get the mouse cursor position at startup:
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    document.onmouseup = closeDragElement;
-    // call a function whenever the cursor moves:
-    document.onmousemove = elementDrag;
-  }
-
-  function elementDrag(e) {
-    e = e || window.event;
-    e.preventDefault();
-    // calculate the new cursor position:
-    pos1 = pos3 - e.clientX;
-    pos2 = pos4 - e.clientY;
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    // set the element's new position:
-    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
-  }
-
-  function closeDragElement() {
-    // stop moving when mouse button is released:
-    document.onmouseup = null;
-    document.onmousemove = null;
-  }
-}
-
 function openLink(link) {
     window.open(link.split('?')[0]);
 }
@@ -637,9 +594,25 @@ document.getElementById("negative_prompt").addEventListener("contextmenu", async
 function updateImageScales() {
     const images = document.querySelectorAll('#images img');
     const value = Number(document.getElementById('img_display_input').value); // Convert value to a number
-    images.forEach(img => {
-        img.style.width = `${100 / value - 4}vw`;
-    });
+    const imagesContainer = document.getElementById('images');
+    if (value > 0) {
+        imagesContainer.style.display = 'grid';
+        imagesContainer.style.gridTemplateColumns = `repeat(${value}, 1fr)`;
+        imagesContainer.style.gap = '12px';
+        images.forEach(img => {
+            img.style.width = '100%';
+            img.style.minWidth = 'unset';
+            img.style.maxWidth = '100%';
+        });
+    } else {
+        imagesContainer.style.display = 'flex';
+        imagesContainer.style.gridTemplateColumns = '';
+        images.forEach(img => {
+            img.style.width = '';
+            img.style.minWidth = '';
+            img.style.maxWidth = '';
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

@@ -1,13 +1,13 @@
 <div align="center">
 
-# EasyUI V2.5.5
+# EasyUI V2.5.6
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.5.5-blue)
+![Version](https://img.shields.io/badge/version-2.5.6-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -16,18 +16,25 @@
 
 ---
 
-## What's New in V2.5.5
+
+## What's New in V2.5.6
+
+- **Image Gallery Improvements** — The gallery now supports any number of images per row, with a responsive horizontal auto-grid. The previous hardcoded display limit of 4 has been removed. Layout is more flexible and adapts to your chosen value.
+- **UI Consistency** — Gallery and image scaling are now more robust, with improved CSS grid handling and better responsiveness across devices.
+- **General bug fixes and UI polish** — Various UI/UX improvements, more consistent dropdowns, and minor fixes throughout the app.
+
+<details>
+<summary>
+
+## Previous Versions</summary>
+
+**V2.5.5**
 
 - **New Terminal extension** — Live server output (stdout + stderr) viewable directly in the UI via a new action bar button.
 - **Favorites extension** — Star images to save as favorites, with robust UI, persistent storage, and improved hover/interaction effects.
 - **Theme system improvements** — More robust theme loading and error handling for custom UI colors and backgrounds.
 - **Extension system improvements** — Improved isolation for extension CSS/JS, more reliable Extension Manager, and better extension load order handling.
 - **General bug fixes and UI polish** — Various UI/UX improvements, more consistent dropdowns, and major fixes throughout the app.
-
-<details>
-<summary>
-
-## Previous Versions</summary>
 
 **V2.4.1**
 

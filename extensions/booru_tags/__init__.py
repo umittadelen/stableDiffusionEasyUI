@@ -1,5 +1,5 @@
 EXTENSION_NAME        = "Booru Tag Helper"
-EXTENSION_VERSION     = "1.0.0"
+EXTENSION_VERSION     = "1.1.0"
 EXTENSION_DESCRIPTION = "Autocomplete booru-style tags in the prompt fields, sorted by post count."
 
 import os
