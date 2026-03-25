@@ -1,3 +1,86 @@
+/* Model card flex layout for models page */
+.model-card-flex {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 90px;
+    padding: 12px 18px;
+}
+.model-card-img-wrap {
+    flex: 0 0 90px;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.model-card-img {
+    max-width: 90px;
+    max-height: 90px;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
+}
+.model-card-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+/* Modal overlay and popup for model details */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+}
+.modal-box {
+    min-width: 320px;
+    max-width: 95vw;
+    width: 400px;
+    padding: 32px 28px 22px 28px;
+    border-radius: 18px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    position: relative;
+    animation: modal-pop 0.22s cubic-bezier(.4,1.6,.6,1) 1;
+}
+@keyframes modal-pop {
+    0% { opacity: 0; transform: scale(0.92) translateY(30px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: rgba(var(--tone3), 0.55);
+    cursor: pointer;
+    z-index: 10;
+    transition: color 0.2s;
+}
+.modal-close:hover {
+    color: rgba(var(--tone3), 0.85);
+}
+
+body.models-page #all {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 32px 12px;
+    height: auto;
+    grid-template-columns: none;
+}
 /* ═══════════════════════════════════════════════════════
    Stable Diffusion EasyUI — Dark Glassmorphism Theme
    ═══════════════════════════════════════════════════════ */
@@ -401,6 +484,7 @@ button .btn-container svg {
 }
 
 /* Danger button (Stop) */
+/* Danger button (Stop) */
 .btn-danger {
     background: rgba(220, 60, 60, 0.2);
     border-color: rgba(220, 60, 60, 0.35);
@@ -408,6 +492,13 @@ button .btn-container svg {
 }
 .btn-danger:hover {
     background: rgba(220, 60, 60, 0.35);
+}
+/* Center delete button in modal only */
+#model-details-form .modal-delete-btn {
+    display: block;
+    margin: 24px auto 0 auto;
+    text-align: center;
+    min-width: 160px;
 }
 
 /* Secondary button (Save Prompt, etc.) */

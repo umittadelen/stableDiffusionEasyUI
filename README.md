@@ -1,13 +1,13 @@
 <div align="center">
 
-# EasyUI V2.5.6
+# EasyUI V2.6.0
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.5.6-blue)
+![Version](https://img.shields.io/badge/version-2.6.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -17,16 +17,26 @@
 ---
 
 
-## What's New in V2.5.6
 
-- **Image Gallery Improvements** — The gallery now supports any number of images per row, with a responsive horizontal auto-grid. The previous hardcoded display limit of 4 has been removed. Layout is more flexible and adapts to your chosen value.
-- **UI Consistency** — Gallery and image scaling are now more robust, with improved CSS grid handling and better responsiveness across devices.
+## What's New in V2.6.0
+
+- **Model Manager Overhaul** — The Model Editor page now features a modern card-based UI, with preview images, glassmorphic modal editing, and robust model add/edit/delete logic. No more raw JSON editing!
+- **Safer Model Deletion** — Deleting a model now requires confirmation, preventing accidental removals.
+- **Persistent Download Status** — Model download status messages now persist after page refresh, so you always know what's happening.
+- **Improved Feedback** — Downloading a model shows a non-blocking status message instead of a popup, for a smoother experience.
+- **UI/UX Polish** — Model cards are visually improved, with images aligned to the left and details to the right for a cleaner look.
 - **General bug fixes and UI polish** — Various UI/UX improvements, more consistent dropdowns, and minor fixes throughout the app.
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.5.6**
+
+- **Image Gallery Improvements** — The gallery now supports any number of images per row, with a responsive horizontal auto-grid. The previous hardcoded display limit of 4 has been removed. Layout is more flexible and adapts to your chosen value.
+- **UI Consistency** — Gallery and image scaling are now more robust, with improved CSS grid handling and better responsiveness across devices.
+- **General bug fixes and UI polish** — Various UI/UX improvements, more consistent dropdowns, and minor fixes throughout the app.
 
 **V2.5.5**
 

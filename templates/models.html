@@ -2,51 +2,84 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=atacsa1.0">
     <title>Model Editor</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
-        textarea {
-            font-weight: normal;
+        /* Only for models.html: add padding to glass panels */
+        .models-page .glass-panel {
+            padding: 1.25rem !important;
+        }
+        
+        #models-list .div-border:last-child {
+            margin-bottom: 0 !important;
         }
     </style>
-</head>
-<body>
+    </head>
+    <body class="models-page">
+
     <div id="all">
-        <h1>Model Editor</h1>
+        <h1>Model Manager</h1>
 
-        <form id="model-form" class="form" onsubmit="submitModel(event)">
-            <div id="modelId-div">
-                <label for="modelId">Model ID:</label>
-                <input type="text" id="modelId" name="model_id" placeholder="Model ID" required>
-            </div>
-
-            <div id="versionId-div">
-                <label for="modelId">Version ID:</label>
-                <input type="text" id="versionId" name="version_id" placeholder="Version ID" required>
-            </div>
-
-            <button type="submit">Download Model From Civitai</button>
-        </form>
+        <!-- Download Model Section -->
+        <section class="form-section glass-panel">
+            <h2 class="section-title">Download Model from Civitai</h2>
+            <form id="model-form" class="form-row" onsubmit="submitModel(event)">
+                <div class="input-div">
+                    <label for="modelId">Model ID</label> 
+                    <input type="text" id="modelId" name="model_id" placeholder="Model ID" required>
+                </div>
+                <div class="input-div">
+                    <label for="versionId">Version ID</label>
+                    <input type="text" id="versionId" name="version_id" placeholder="Version ID" required>
+                </div>
+                <button type="submit" class="btn-primary">Download</button>
+                <div id="model-download-status" style="margin-top:10px;font-size:0.98em;min-height:1.5em;"></div>
+            </form>
+        </section>
 
         <div id="form-separator"></div>
 
-        <div class="form">
-            <label for="json-editor">View and Edit JSON</label>
-            <textarea id="json-editor" placeholder="JSON content will appear here" oninput="validateJson()" style="height: 20em;"></textarea>
-            <button onclick="saveJson()">Save JSON</button>
-            <p id="json-status"></p>
+        <!-- Model List & Edit Section -->
+
+        <section class="form-section glass-panel">
+            <h2 class="section-title">Installed Models</h2>
+            <div id="models-list">
+                <!-- Model cards will be dynamically populated by JS -->
+            </div>
+        </section>
+
+        <!-- Model Details Popup Modal -->
+        <div id="model-details-overlay" class="modal-overlay" style="display:none;">
+            <div id="model-details-modal" class="glass-panel modal-box">
+                <button class="modal-close" onclick="closeModelDetails()">&times;</button>
+                <h3>Edit Model Details</h3>
+                <form id="model-details-form" class="form-col" onsubmit="saveModelDetails(event)">
+                    <div class="input-div">
+                        <label for="edit-model-name">Name</label>
+                        <input type="text" id="edit-model-name" name="name" required>
+                    </div>
+                    <div class="input-div">
+                        <label for="edit-model-type">Type</label>
+                        <input type="text" id="edit-model-type" name="type">
+                    </div>
+                    <div class="input-div">
+                        <label for="edit-model-path">Path</label>
+                        <input type="text" id="edit-model-path" name="path">
+                    </div>
+                    <div class="input-div">
+                        <label for="edit-model-description">Description</label>
+                        <textarea id="edit-model-description" name="description"></textarea>
+                    </div>
+                    <button type="submit" class="btn-secondary">Save Changes</button>
+                    <button type="button" class="btn-danger modal-delete-btn" onclick="deleteSelectedModel()">Delete Model</button>
+                </form>
+            </div>
         </div>
 
         <div id="form-separator"></div>
 
-        <div id="delete-model-form" class="form">
-            <label for="delete_model_id">Model Name To Delete:</label>
-            <input type="text" id="deleteModelId" name="delete_model_id" placeholder="Model Name" required>
-            <button onclick="deleteModel()">Delete Model</button>
-            <p id="delete-status"></p>
-        </div>
     </div>
 
     <script src="{{url_for('static', filename='js/customConfirm.js')}}" defer></script>
