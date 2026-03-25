@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
+
 # EasyUI V2.6.1
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
