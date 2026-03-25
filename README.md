@@ -1,13 +1,13 @@
 <div align="center">
 
-# EasyUI V2.6.0
+# EasyUI V2.6.1
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.6.0-blue)
+![Version](https://img.shields.io/badge/version-2.6.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -18,7 +18,21 @@
 
 
 
-## What's New in V2.6.0
+
+## What's New in V2.6.1
+
+- **Settings Page Redesign** — The Settings page now uses a modern, glassmorphic multi-column grid layout. Settings are grouped into cards, with a responsive grid that adapts to any screen size. The layout is visually consistent with the rest of the UI and supports unlimited columns on wide screens.
+- **True Responsive Grid** — The settings grid now expands to as many columns as fit the viewport, with no artificial column or width limit. On smaller screens, it stacks vertically for mobile usability.
+- **Consistent Glassmorphism** — All settings cards use the same glassmorphism style as the rest of the app, with uniform padding and spacing.
+- **No More Layout Inheritance Issues** — The settings page no longer inherits the main page's grid layout, ensuring the settings grid always behaves as intended.
+- **General UI/UX Polish** — Improved spacing, heading alignment, and responsive behavior for a more professional look and feel.
+
+<details>
+<summary>
+
+## Previous Versions</summary>
+
+**V2.6.0**
 
 - **Model Manager Overhaul** — The Model Editor page now features a modern card-based UI, with preview images, glassmorphic modal editing, and robust model add/edit/delete logic. No more raw JSON editing!
 - **Safer Model Deletion** — Deleting a model now requires confirmation, preventing accidental removals.
@@ -26,11 +40,6 @@
 - **Improved Feedback** — Downloading a model shows a non-blocking status message instead of a popup, for a smoother experience.
 - **UI/UX Polish** — Model cards are visually improved, with images aligned to the left and details to the right for a cleaner look.
 - **General bug fixes and UI polish** — Various UI/UX improvements, more consistent dropdowns, and minor fixes throughout the app.
-
-<details>
-<summary>
-
-## Previous Versions</summary>
 
 **V2.5.6**
 

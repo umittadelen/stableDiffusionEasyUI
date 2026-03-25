@@ -6,219 +6,278 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <title>Settings Editor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+        <style>
+            /* Prevent #all from inheriting grid from global style.css on settings.html */
+            #all.settings-container {
+                display: block !important;
+                margin: 0 auto;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .settings-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 16px;
+                align-items: stretch;
+                margin-bottom: 18px;
+            }
+            .settings-grid .form-section {
+                margin-bottom: 0;
+                border-bottom: none;
+                min-width: 0;
+                padding: 14px !important;
+            }
+            h1 {
+                width: 100%;
+                margin-bottom: 18px;
+                text-align: center;
+            }
+        </style>
 </head>
 <body>
-    <div id="all">
-        <h1>Settings Editor</h1>
-
+    <h1>Settings Editor</h1>
+    <div id="all" class="settings-container">
         <form id="settings-form" class="form" onsubmit="saveSettings(event)">
+            <div class="settings-grid">
+                <!-- UI Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">User Interface</h2>
+                    <div class="setting-label">
+                        <label for="theme-select">Theme:</label>
+                        <span class="info-icon" data-tooltip="Visual color theme for the UI.">ⓘ</span>
+                    </div>
+                    <select id="theme" name="theme-select"></select>
+                </section>
 
-            <div class="setting-label">
-                <label for="theme-select">Theme:</label>
-                <span class="info-icon" data-tooltip="Visual color theme for the UI.">ⓘ</span>
+                <!-- Performance Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">Performance</h2>
+                    <div class="setting-label">
+                        <label for="attention-slicing">Enable Attention Slicing:</label>
+                        <span class="info-icon" data-tooltip="Splits attention computation into slices to reduce peak VRAM usage. Slightly slower but allows larger images on limited VRAM.&#10;&#10;Recommended: True">ⓘ</span>
+                    </div>
+                    <select id="attention-slicing" name="attention-slicing">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="xformers">Enable xformers Memory Efficient Attention:</label>
+                        <span class="info-icon" data-tooltip="Uses xformers library for faster and more memory-efficient attention. Requires xformers to be installed.&#10;&#10;Requirements: xformers installed, CUDA GPU&#10;Recommended: False (unless xformers is installed)">ⓘ</span>
+                    </div>
+                    <select id="xformers" name="xformers">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="cpu-offload">Enable Model CPU Offload:</label>
+                        <span class="info-icon" data-tooltip="Offloads model weights to CPU between steps, freeing VRAM. Allows running large models on low VRAM GPUs at the cost of speed.&#10;&#10;Recommended: True for &lt;8GB VRAM">ⓘ</span>
+                    </div>
+                    <select id="cpu-offload" name="cpu-offload">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="sequential-cpu">Enable Sequential CPU Offload:</label>
+                        <span class="info-icon" data-tooltip="More aggressive CPU offloading — moves each layer individually. Very slow but can run on minimal VRAM (&lt;4GB).&#10;&#10;⚠ Disables embedding-based prompt weighting (Compel). Prompts are passed as plain text instead.&#10;&#10;Recommended: False unless VRAM is very limited">ⓘ</span>
+                    </div>
+                    <select id="sequential-cpu" name="sequential-cpu">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                </section>
+
+                <!-- Model Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">Model & Tokenizer</h2>
+                    <div class="setting-label">
+                        <label for="long-clip">Use Long CLIP:</label>
+                        <span class="info-icon" data-tooltip="Replaces the standard 77-token CLIP with a Long CLIP model supporting up to 248 tokens, enabling much longer prompts.&#10;&#10;Requirements: Downloads model on first use (~1GB)&#10;Recommended: True">ⓘ</span>
+                    </div>
+                    <select id="long-clip" name="long-clip">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="long-clip-model">Long CLIP Model:</label>
+                        <span class="info-icon" data-tooltip="HuggingFace model ID for the Long CLIP model used when Use Long CLIP is enabled.&#10;&#10;Default: zer0int/LongCLIP-GmP-ViT-L-14">ⓘ</span>
+                    </div>
+                    <input type="text" name="long-clip-model" id="long-clip-model">
+                    <div class="setting-label">
+                        <label for="fallback-vae-model">Fallback VAE Model:</label>
+                        <span class="info-icon" data-tooltip="HuggingFace model ID for the VAE used when the loaded model does not include its own VAE.&#10;&#10;Default: madebyollin/sdxl-vae-fp16-fix">ⓘ</span>
+                    </div>
+                    <input type="text" name="fallback-vae-model" id="fallback-vae-model">
+                    <div class="setting-label">
+                        <label for="default-clip-model">Default CLIP Model:</label>
+                        <span class="info-icon" data-tooltip="HuggingFace model ID for the standard CLIP model used when Use Long CLIP is disabled.&#10;&#10;Default: openai/clip-vit-base-patch16">ⓘ</span>
+                    </div>
+                    <input type="text" name="default-clip-model" id="default-clip-model">
+                    <div class="setting-label">
+                        <label for="fallback-tokenizer-model">Fallback Tokenizer Model:</label>
+                        <span class="info-icon" data-tooltip="HuggingFace model ID for the tokenizer used when the loaded model does not include its own tokenizer.&#10;&#10;Default: openai/clip-vit-base-patch16">ⓘ</span>
+                    </div>
+                    <input type="text" name="fallback-tokenizer-model" id="fallback-tokenizer-model">
+                </section>
+
+                <!-- Gallery Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">Gallery & Display</h2>
+                    <div class="setting-label">
+                        <label for="image-size">Preview Image Size:</label>
+                        <span class="info-icon" data-tooltip="Scales down images in the gallery for faster loading. The saved image on disk is always full resolution.">ⓘ</span>
+                    </div>
+                    <select id="image-size" name="image-size">
+                        <option value="100">100%</option>
+                        <option value="75">75%</option>
+                        <option value="50">50%</option>
+                        <option value="25">25%</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="show-model-preview">Show Model Preview:</label>
+                        <span class="info-icon" data-tooltip="Show a preview image for each model in the model selector.">ⓘ</span>
+                    </div>
+                    <select id="show-model-preview" name="show-model-preview">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="show-latents">Show Latents (Live Preview):</label>
+                        <span class="info-icon" data-tooltip="Show a low-quality live preview of the image being generated by decoding the latent tensor each step.&#10;&#10;⚠ Increases generation time slightly. Does not work with Sequential CPU Offload.">ⓘ</span>
+                    </div>
+                    <select id="show-latents" name="show-latents">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="reverse-image-order">Image Display Order:</label>
+                        <span class="info-icon" data-tooltip="Controls whether new images appear at the top or bottom of the gallery.">ⓘ</span>
+                    </div>
+                    <select id="reverse-image-order" name="reverse-image-order">
+                        <option value="False">New Last</option>
+                        <option value="True">New First</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="reset-on-new-request">Reset Images On New Request:</label>
+                        <span class="info-icon" data-tooltip="Clear the image gallery when a new generation is started.">ⓘ</span>
+                    </div>
+                    <select id="reset-on-new-request" name="reset-on-new-request">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                </section>
+
+                <!-- Data & Polling Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">Data & Polling</h2>
+                    <div class="setting-label">
+                        <label for="update-interwal">Update Interval (ms):</label>
+                        <span class="info-icon" data-tooltip="How often (in milliseconds) the page polls the server for generation status and new images.&#10;&#10;Lower = more responsive but more CPU/network use.&#10;Default: 2500">ⓘ</span>
+                    </div>
+                    <input type="number" name="update-interwal" id="update-interwal" min="1">
+                    <div class="setting-label">
+                        <label for="update-page-in-background">Update Page In Background:</label>
+                        <span class="info-icon" data-tooltip="Continue polling for updates even when the browser tab is not focused or visible.">ⓘ</span>
+                    </div>
+                    <select id="update-page-in-background" name="update-page-in-background">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="load-previous-data">Load Previous Form Data:</label>
+                        <span class="info-icon" data-tooltip="Restore the last-used prompt, settings and model when opening the main page.">ⓘ</span>
+                    </div>
+                    <select id="load-previous-data" name="load-previous-data">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                </section>
+
+                <!-- Prompt Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">Prompt Options</h2>
+                    <div class="setting-label">
+                        <label for="use-multi-prompt">Use Multiple Prompts:</label>
+                        <span class="info-icon" data-tooltip="Split the prompt field by the separator character and generate images for each prompt in sequence.">ⓘ</span>
+                    </div>
+                    <select id="use-multi-prompt" name="use-multi-prompt">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="multi-prompt-separator">Multiple Prompt Separator:</label>
+                        <span class="info-icon" data-tooltip="Character used to split the prompt field into multiple prompts. Each segment is generated with the same settings.&#10;&#10;Default: §">ⓘ</span>
+                    </div>
+                    <input type="text" name="multi-prompt-separator" id="multi-prompt-separator">
+                </section>
+
+                <!-- NSFW Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">NSFW Detection</h2>
+                    <div class="setting-label">
+                        <label for="enable-nsfw-blur">Enable NSFW Blur:</label>
+                        <span class="info-icon" data-tooltip="Blur images classified as NSFW in the gallery. Hover to reveal. Uses SmilingWolf/wd-swinv2-tagger-v3 — tuned for anime/AI art (downloaded ~60 MB on first use).">&#9432;</span>
+                    </div>
+                    <select id="enable-nsfw-blur" name="enable-nsfw-blur">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="nsfw-threshold">NSFW Detection Sensitivity:</label>
+                        <span class="info-icon" data-tooltip="Confidence threshold for NSFW detection.&#10;&#10;Very Low (0.2) = flag almost everything&#10;Low (0.3) = catches borderline content (default)&#10;Medium (0.5) = balanced&#10;High (0.7) = only flag clearly explicit">&#9432;</span>
+                    </div>
+                    <select id="nsfw-threshold" name="nsfw-threshold">
+                        <option value="0.2">Very Low (flag almost all)</option>
+                        <option value="0.3" selected>Low (default)</option>
+                        <option value="0.5">Medium</option>
+                        <option value="0.7">High (strict)</option>
+                    </select>
+                </section>
+
+                <!-- Server Section -->
+                <section class="form-section glass-panel">
+                    <h2 class="section-title">Server</h2>
+                    <p style="margin-bottom: 0.7em;">IP and port will apply after restarting the server.</p>
+                    <div class="setting-label">
+                        <label for="host">Host (IP):</label>
+                        <span class="info-icon" data-tooltip="The IP address the server listens on.&#10;Use 0.0.0.0 to allow access from other devices on the network.&#10;&#10;Default: localhost">ⓘ</span>
+                    </div>
+                    <input type="text" name="host" id="host">
+                    <div class="setting-label">
+                        <label for="port">Port:</label>
+                        <span class="info-icon" data-tooltip="The port the server listens on.&#10;&#10;Default: 8080">ⓘ</span>
+                    </div>
+                    <input type="number" name="port" id="port" min="0">
+                </section>
             </div>
-            <select id="theme" name="theme-select"></select>
-
-            <div class="setting-label">
-                <label for="attention-slicing">Enable Attention Slicing:</label>
-                <span class="info-icon" data-tooltip="Splits attention computation into slices to reduce peak VRAM usage. Slightly slower but allows larger images on limited VRAM.&#10;&#10;Recommended: True">ⓘ</span>
-            </div>
-            <select id="attention-slicing" name="attention-slicing">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="xformers">Enable xformers Memory Efficient Attention:</label>
-                <span class="info-icon" data-tooltip="Uses xformers library for faster and more memory-efficient attention. Requires xformers to be installed.&#10;&#10;Requirements: xformers installed, CUDA GPU&#10;Recommended: False (unless xformers is installed)">ⓘ</span>
-            </div>
-            <select id="xformers" name="xformers">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="cpu-offload">Enable Model CPU Offload:</label>
-                <span class="info-icon" data-tooltip="Offloads model weights to CPU between steps, freeing VRAM. Allows running large models on low VRAM GPUs at the cost of speed.&#10;&#10;Recommended: True for &lt;8GB VRAM">ⓘ</span>
-            </div>
-            <select id="cpu-offload" name="cpu-offload">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="sequential-cpu">Enable Sequential CPU Offload:</label>
-                <span class="info-icon" data-tooltip="More aggressive CPU offloading — moves each layer individually. Very slow but can run on minimal VRAM (&lt;4GB).&#10;&#10;⚠ Disables embedding-based prompt weighting (Compel). Prompts are passed as plain text instead.&#10;&#10;Recommended: False unless VRAM is very limited">ⓘ</span>
-            </div>
-            <select id="sequential-cpu" name="sequential-cpu">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="long-clip">Use Long CLIP:</label>
-                <span class="info-icon" data-tooltip="Replaces the standard 77-token CLIP with a Long CLIP model supporting up to 248 tokens, enabling much longer prompts.&#10;&#10;Requirements: Downloads model on first use (~1GB)&#10;Recommended: True">ⓘ</span>
-            </div>
-            <select id="long-clip" name="long-clip">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="long-clip-model">Long CLIP Model:</label>
-                <span class="info-icon" data-tooltip="HuggingFace model ID for the Long CLIP model used when Use Long CLIP is enabled.&#10;&#10;Default: zer0int/LongCLIP-GmP-ViT-L-14">ⓘ</span>
-            </div>
-            <input type="text" name="long-clip-model" id="long-clip-model">
-
-            <div class="setting-label">
-                <label for="fallback-vae-model">Fallback VAE Model:</label>
-                <span class="info-icon" data-tooltip="HuggingFace model ID for the VAE used when the loaded model does not include its own VAE.&#10;&#10;Default: madebyollin/sdxl-vae-fp16-fix">ⓘ</span>
-            </div>
-            <input type="text" name="fallback-vae-model" id="fallback-vae-model">
-
-            <div class="setting-label">
-                <label for="default-clip-model">Default CLIP Model:</label>
-                <span class="info-icon" data-tooltip="HuggingFace model ID for the standard CLIP model used when Use Long CLIP is disabled.&#10;&#10;Default: openai/clip-vit-base-patch16">ⓘ</span>
-            </div>
-            <input type="text" name="default-clip-model" id="default-clip-model">
-
-            <div class="setting-label">
-                <label for="fallback-tokenizer-model">Fallback Tokenizer Model:</label>
-                <span class="info-icon" data-tooltip="HuggingFace model ID for the tokenizer used when the loaded model does not include its own tokenizer.&#10;&#10;Default: openai/clip-vit-base-patch16">ⓘ</span>
-            </div>
-            <input type="text" name="fallback-tokenizer-model" id="fallback-tokenizer-model">
-
-            <div class="setting-label">
-                <label for="image-size">Preview Image Size:</label>
-                <span class="info-icon" data-tooltip="Scales down images in the gallery for faster loading. The saved image on disk is always full resolution.">ⓘ</span>
-            </div>
-            <select id="image-size" name="image-size">
-                <option value="100">100%</option>
-                <option value="75">75%</option>
-                <option value="50">50%</option>
-                <option value="25">25%</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="update-interwal">Update Interval (ms):</label>
-                <span class="info-icon" data-tooltip="How often (in milliseconds) the page polls the server for generation status and new images.&#10;&#10;Lower = more responsive but more CPU/network use.&#10;Default: 2500">ⓘ</span>
-            </div>
-            <input type="number" name="update-interwal" id="update-interwal" min="1">
-
-            <div class="setting-label">
-                <label for="update-page-in-background">Update Page In Background:</label>
-                <span class="info-icon" data-tooltip="Continue polling for updates even when the browser tab is not focused or visible.">ⓘ</span>
-            </div>
-            <select id="update-page-in-background" name="update-page-in-background">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="show-model-preview">Show Model Preview:</label>
-                <span class="info-icon" data-tooltip="Show a preview image for each model in the model selector.">ⓘ</span>
-            </div>
-            <select id="show-model-preview" name="show-model-preview">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="show-latents">Show Latents (Live Preview):</label>
-                <span class="info-icon" data-tooltip="Show a low-quality live preview of the image being generated by decoding the latent tensor each step.&#10;&#10;⚠ Increases generation time slightly. Does not work with Sequential CPU Offload.">ⓘ</span>
-            </div>
-            <select id="show-latents" name="show-latents">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="load-previous-data">Load Previous Form Data:</label>
-                <span class="info-icon" data-tooltip="Restore the last-used prompt, settings and model when opening the main page.">ⓘ</span>
-            </div>
-            <select id="load-previous-data" name="load-previous-data">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="reset-on-new-request">Reset Images On New Request:</label>
-                <span class="info-icon" data-tooltip="Clear the image gallery when a new generation is started.">ⓘ</span>
-            </div>
-            <select id="reset-on-new-request" name="reset-on-new-request">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="reverse-image-order">Image Display Order:</label>
-                <span class="info-icon" data-tooltip="Controls whether new images appear at the top or bottom of the gallery.">ⓘ</span>
-            </div>
-            <select id="reverse-image-order" name="reverse-image-order">
-                <option value="False">New Last</option>
-                <option value="True">New First</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="use-multi-prompt">Use Multiple Prompts:</label>
-                <span class="info-icon" data-tooltip="Split the prompt field by the separator character and generate images for each prompt in sequence.">ⓘ</span>
-            </div>
-            <select id="use-multi-prompt" name="use-multi-prompt">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="multi-prompt-separator">Multiple Prompt Separator:</label>
-                <span class="info-icon" data-tooltip="Character used to split the prompt field into multiple prompts. Each segment is generated with the same settings.&#10;&#10;Default: §">ⓘ</span>
-            </div>
-            <input type="text" name="multi-prompt-separator" id="multi-prompt-separator">
-
             <div id="form-separator"></div>
-
-            <div class="setting-label">
-                <label for="enable-nsfw-blur">Enable NSFW Blur:</label>
-                <span class="info-icon" data-tooltip="Blur images classified as NSFW in the gallery. Hover to reveal. Uses SmilingWolf/wd-swinv2-tagger-v3 — tuned for anime/AI art (downloaded ~60 MB on first use).">&#9432;</span>
-            </div>
-            <select id="enable-nsfw-blur" name="enable-nsfw-blur">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-
-            <div class="setting-label">
-                <label for="nsfw-threshold">NSFW Detection Sensitivity:</label>
-                <span class="info-icon" data-tooltip="Confidence threshold for NSFW detection.&#10;&#10;Very Low (0.2) = flag almost everything&#10;Low (0.3) = catches borderline content (default)&#10;Medium (0.5) = balanced&#10;High (0.7) = only flag clearly explicit">&#9432;</span>
-            </div>
-            <select id="nsfw-threshold" name="nsfw-threshold">
-                <option value="0.2">Very Low (flag almost all)</option>
-                <option value="0.3" selected>Low (default)</option>
-                <option value="0.5">Medium</option>
-                <option value="0.7">High (strict)</option>
-            </select>
-
-            <div id="form-separator"></div>
-
-            <p>IP and port will apply after restarting the server.</p>
-
-            <div class="setting-label">
-                <label for="host">Host (IP):</label>
-                <span class="info-icon" data-tooltip="The IP address the server listens on.&#10;Use 0.0.0.0 to allow access from other devices on the network.&#10;&#10;Default: localhost">ⓘ</span>
-            </div>
-            <input type="text" name="host" id="host">
-
-            <div class="setting-label">
-                <label for="port">Port:</label>
-                <span class="info-icon" data-tooltip="The port the server listens on.&#10;&#10;Default: 8080">ⓘ</span>
-            </div>
-            <input type="number" name="port" id="port" min="0">
-
-            <div id="form-separator"></div>
-
-            <button type="submit">Save Settings</button>
+            <button type="submit" class="btn-primary">Save Settings</button>
         </form>
         <script src="{{url_for('static', filename='js/loadJson.js')}}" defer></script>
         <script src="{{url_for('static', filename='js/settings.js')}}" defer></script>
         <script src="{{url_for('static', filename='js/theme.js')}}" defer></script>
+        <style>
+            .settings-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 16px;
+                align-items: stretch;
+                margin-bottom: 18px;
+            }
+            /* Remove forced single column on small screens; let auto-fit/minmax handle responsiveness */
+            .settings-grid .form-section {
+                margin-bottom: 0;
+                border-bottom: none;
+                min-width: 0;
+                padding: 14px !important;
+            }
+
+            h1 {
+                width: 100%;
+                margin-bottom: 18px;
+                text-align: center;
+            }
+        </style>
     </div>
 </body>
 </html>
