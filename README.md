@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.6.2
+# EasyUI V2.6.4
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.6.2-blue)
+![Version](https://img.shields.io/badge/version-2.6.4-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,14 +19,20 @@
 ---
 
 
-## What's New in V2.6.2
+## What's New in V2.6.4
 
-- start.bat file changed with start.exe for easier launching
+- **Latents Color Handling Improved** — Latent-to-image color conversion is now more accurate and robust. Latent image saving is now handled in a background thread/queue for better performance and stability.
+- **Consistent Strength Range** — The `strength` parameter for img2img now uses the same 0.0–1.0 range as ControlNet, making parameter behavior consistent across modes.
+- **Image Metadata Fixes** — Improved and fixed image metadata saving, ensuring prompt and generation details are correctly embedded in PNGs.
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.6.2**
+
+- start.bat file changed with start.exe for easier launching
 
 **V2.6.1**
 
@@ -122,12 +128,11 @@ cd stableDiffusionEasyUI
 ```
 
 **Option A — Embedded Python (recommended):**
-Run `start.bat`. Dependencies are installed automatically on first launch.
+Run `start.exe`. Dependencies are installed automatically on first launch.
 
-**Option B — Your own Python:**
+**Option B — Direct Run With Embedded Python (run.py):**
 ```bash
-pip install -r requirements.txt
-python run.py
+python-3.10.6/python.exe run.py
 ```
 
 The server starts at `http://localhost:8080` by default. The host and port can be changed from the Settings page.

@@ -32,6 +32,7 @@ from tools.DepthPro import DepthPro
 from tools.BEiTDepthEstimation import BEiTDepthEstimation
 from tools.NormalMap import NormalMap
 import base64
+import queue
 from extension_loader import extension_loader, AppAPI
 
 app = Flask(__name__)
@@ -268,6 +269,7 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
 
             DiffusionPipeline.from_pretrained
         )
+    print("Pipeline class set to:", pipeline.__name__)
 
     gconfig["status"] = "Loading New Pipeline... (Pipeline loaded)"
 
@@ -347,29 +349,73 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
     extension_loader.hooks.fire("after_load_pipeline", pipe=pipe, model_name=model_name, model_type=model_type)
     return pipe
 
-def latents_to_img(latents) -> Image:
-    weights = (
-        (60, -60, 25, -70),
-        (60,  -5, 15, -50),
-        (60,  10, -5, -35),
-    )
+def latents_to_img(latents, pipe) -> Image:
+    # Make sure latents are float
+    latents = latents.float()
 
-    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
-    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+    # Try to get the model's latent_rgb_factors from the VAE
+    # If not available, fall back to manual weights
+    try:
+        factors = pipe.vae.latent_format.latent_rgb_factors  # shape: [4,3] maybe
+        biases = pipe.vae.latent_format.latent_rgb_biases   # optional, fallback if available
+        if factors is None:
+            raise AttributeError("No latent_rgb_factors in model")
+        
+        # Convert to torch tensors
+        weights_tensor = torch.tensor(factors, dtype=latents.dtype, device=latents.device).t()
+        if biases is not None:
+            biases_tensor = torch.tensor(biases, dtype=latents.dtype, device=latents.device)
+        else:
+            biases_tensor = torch.zeros(3, dtype=latents.dtype, device=latents.device)
+
+        rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+
+    except Exception:
+        # fallback to manual weights
+        weights = (
+            (60, -60, 25, -70),
+            (60,  -5, 15, -50),
+            (60,  10, -5, -35),
+        )
+        weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
+        biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
+        rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+
+    # Clamp and convert to uint8
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
-
     return Image.fromarray(image_array)
 
+
+# --- Latents saving queue and worker ---
+
+latents_save_queue = queue.Queue()
+
+def latents_saver_worker():
+    while True:
+        item = latents_save_queue.get()
+        if item is None:
+            break  # Shutdown signal
+        latents, pipe, image_path, seed = item
+        try:
+            latents = latents.detach().cpu()
+            image = latents_to_img(latents, pipe)
+            if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
+                image.save(image_path, 'PNG')
+                # Do NOT run NSFW check for latents; store None for nsfw_score
+                gconfig["image_cache"][seed] = [image_path, None]
+        except Exception:
+            pass
+        finally:
+            latents_save_queue.task_done()
+
+# Start the background worker thread (only once)
+if not hasattr(globals(), "_latents_saver_thread"):
+    _latents_saver_thread = threading.Thread(target=latents_saver_worker, daemon=True)
+    _latents_saver_thread.start()
+
 def save_latents_image(latents, pipe, image_path, seed):
-    try:
-        latents = latents.detach().cpu().float()
-        image = latents_to_img(latents)
-        if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
-            image.save(image_path, 'PNG')
-            gconfig["image_cache"][seed] = [image_path]
-    except Exception:
-        pass  # Don't crash the generation thread over a preview
+    # Just enqueue the save request, don't block
+    latents_save_queue.put((latents, pipe, image_path, seed))
 
 def image_to_base64(img, temp_file=f"{gconfig['generated_dir']}temp_base64_image.png"):
     img = img.convert("RGB")
@@ -395,8 +441,8 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
         if gconfig["show_latents"]:
             image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
-
-            threading.Thread(target=save_latents_image, args=(callback_kwargs["latents"][0], pipe, image_path, seed)).start()
+            # Enqueue the latents for saving (non-blocking)
+            save_latents_image(callback_kwargs["latents"][0], pipe, image_path, seed)
 
         if gconfig["generation_stopped"]:
             gconfig["status"] = "Generation Stopped"
@@ -461,7 +507,7 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
                 #! Pass the image to pipeline - (kwargs for img2img)
                 kwargs["image"] = image
-                kwargs["strength"] = strength
+                kwargs["strength"] = 1.0 - strength
         else:
             #! Pass the parameters to the pipeline - (kwargs for txt2img)
             kwargs["width"] = width
@@ -515,13 +561,23 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
         metadata.add_text("Width", str(width))
         metadata.add_text("Height", str(height))
         metadata.add_text("CFGScale", str(cfg_scale))
-        metadata.add_text("ImgInput", str(image_to_base64(load_image(img_input).convert("RGB"))) if img_input else "N/A")
-        metadata.add_text("ImgInputMetadata", json.dumps(Image.open(img_input).info) if img_input else "N/A")
         metadata.add_text("Strength", str(strength) if "img2img" in model_type else "N/A")
         metadata.add_text("Seed", str(seed))
         metadata.add_text("SamplingSteps", str(samplingSteps))
         metadata.add_text("Model", str(model))
         metadata.add_text("Scheduler", str(scheduler_name))
+        # Use load_image for URLs, Image.open for local files
+        img_for_meta = (
+                (
+                    load_image(img_input) 
+                    if isinstance(img_input, str) and img_input.startswith(("http://","https://"))
+                    else Image.open(img_input)
+                ).convert("RGB") 
+                if img_input
+                else None
+            )
+        metadata.add_text("ImgInput", str(image_to_base64(img_for_meta)) if img_for_meta else "N/A")
+        metadata.add_text("ImgInputMetadata", json.dumps(getattr(img_for_meta, "info", {})) if img_for_meta else "N/A")
 
         #TODO: Save the image to the temporary directory
         image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
@@ -591,8 +647,8 @@ def generate():
     width = int(request.form.get('width', 832))
     height = int(request.form.get('height', 1216))
     strength = float(request.form.get('strength', 0.5))
-    img_input_link = request.form.get('img_input_link', "")
-    img_input_img = request.files.get('img_input_img', "")
+    img_input_link = request.form.get('img_input_link', None)
+    img_input_img = request.files.get('img_input_img', None)
     use_orig_img = request.form.get('use_orig_img', "false")
     generation_type = request.form.get('generation_type', 'txt2img')
     image_size = request.form.get('image_size', 'original')
@@ -812,15 +868,19 @@ def serve_controlnet():
 def controlnet():
     return render_template('controlnet_preview.html')
 
+
 @app.route('/status', methods=['GET'])
 def status():
-    #TODO: Convert the generated images to a list to send to the client
-    images = [{
-            'img': path[0],
+    # Convert the generated images to a list to send to the client
+    images = []
+    for seed, path in gconfig["image_cache"].items():
+        img_path = path[0] if len(path) > 0 else None
+        nsfw_score = path[1] if len(path) > 1 else None
+        images.append({
+            'img': img_path,
             'seed': seed,
-            'nsfw_score': path[1]
-        } for seed, path in gconfig["image_cache"].items()]
-
+            'nsfw_score': nsfw_score
+        })
     return jsonify(
         images=images,
         gconfig=gconfig

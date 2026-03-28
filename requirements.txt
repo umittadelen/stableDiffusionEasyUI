@@ -12,3 +12,4 @@ accelerate
 matplotlib
 onnxruntime
 pandas
+xformers
