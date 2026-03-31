@@ -891,6 +891,9 @@ def addmodel():
 
 @app.route('/serve_controlnet', methods=['POST'])
 def serve_controlnet():
+    if gconfig["generating"]:
+        return jsonify(status='Image generation in progress. Please wait'), 400
+
     file = request.files.get('imageUpload', "")
     controlnet_type = request.form.get('type_select', "")
     if not file:
@@ -922,7 +925,6 @@ def serve_controlnet():
 @app.route('/controlnet')
 def controlnet():
     return render_template('controlnet_preview.html')
-
 
 @app.route('/status', methods=['GET'])
 def status():

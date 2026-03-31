@@ -8,6 +8,9 @@ def BEiTDepthEstimation(image: Image.Image, **kwargs) -> Image.Image:
     # Load model and processor once
     device = kwargs.get("device", "cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device(device)
+    
+    if image.mode != "RGB":
+        image = image.convert("RGB")
 
     processor = DPTImageProcessor.from_pretrained("Intel/dpt-beit-large-512")
     model = DPTForDepthEstimation.from_pretrained("Intel/dpt-beit-large-512").to(device)

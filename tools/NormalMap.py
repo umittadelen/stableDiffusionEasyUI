@@ -8,6 +8,9 @@ def NormalMap(image: Image.Image, **kwargs) -> Image.Image:
     device = kwargs.get("device", "cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device(device)
     
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+    
     # Load depth estimation model
     processor = DPTImageProcessor.from_pretrained("Intel/dpt-hybrid-midas")
     model = DPTForDepthEstimation.from_pretrained("Intel/dpt-hybrid-midas").to(device)

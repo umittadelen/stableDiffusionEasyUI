@@ -187,15 +187,27 @@
             const file = document.getElementById('imageUpload').files[0];
             if (!file) return;
 
+            // Reset UI state
             badge.textContent = 'Processing…';
+            badge.style.background = 'rgba(var(--tone3), 0.14)'; // Reset color
             badge.classList.add('visible');
 
             const formData = new FormData(document.getElementById('generateForm'));
 
             try {
                 const response = await fetch('/serve_controlnet', { method: 'POST', body: formData });
-                if (!response.ok) throw new Error('Server error: ' + response.status);
 
+                if (!response.ok) {
+                    // If the status is 400, parse the JSON error message
+                    if (response.status === 400) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.status || 'Server busy');
+                    } else {
+                        throw new Error('Server error: ' + response.status);
+                    }
+                }
+
+                // Success: Handle Image Blob
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
 
@@ -204,11 +216,18 @@
                 placeholder.style.display = 'none';
 
                 badge.textContent = 'Done';
+                badge.style.background = 'rgba(76, 175, 80, 0.2)'; // Success Green
                 setTimeout(() => badge.classList.remove('visible'), 1500);
+
             } catch (error) {
                 console.error(error);
-                badge.textContent = 'Error';
-                setTimeout(() => badge.classList.remove('visible'), 2500);
+                
+                // Update badge with the specific error message from the server
+                badge.textContent = error.message; 
+                badge.style.background = 'rgba(244, 67, 54, 0.2)'; // Error Red
+                
+                // Keep the error visible longer so the user can read it
+                setTimeout(() => badge.classList.remove('visible'), 5000);
             }
         }
 

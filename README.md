@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.7.5
+# EasyUI V2.7.6
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.7.5-blue)
+![Version](https://img.shields.io/badge/version-2.7.6-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,7 +19,17 @@
 ---
 
 
-## What's New in V2.7.5
+## What's New in V2.7.6
+
+- added check to prevent ControlNet preview requests during image generation, which could cause instability.
+- optimized DepthPro function.
+
+<details>
+<summary>
+
+## Previous Versions</summary>
+
+**V2.7.5**
 
 - fixed image-wrapper width breaking in some cases
 - added max_batch_size and batched_generation settings
@@ -27,11 +37,6 @@
 - latents now deattached, cloned, and moved to CPU before being saved to the generation queue, which should prevent any GPU memory leaks related to latent image saving.
 - seed increases by 1 for each image in the batch when batch size > 1, to ensure different images in the batch instead of identical copies.
 - added if check for if the config host matches the local IP address, and warn the user if it doesn't *since it stops the server immediately*.
-
-<details>
-<summary>
-
-## Previous Versions</summary>
 
 **V2.6.4**
 
