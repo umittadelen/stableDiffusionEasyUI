@@ -1315,5 +1315,5 @@ if __name__ == '__main__':
         print("\033[93mContinuing with current host...\033[0m")
         host = get_local_ip()
         
-    print(f"\n\033[92mServer Started at \033[1;31mhttp://{host}:{port}\033[0m\n")
+    print(f"\n\033[92mServer Started at \033[38;2;1;1;1m\033[47m\033[1m\033[3m http://{host}:{port} \033[0m\n")
     app.run(host=host, port=port, debug=False)

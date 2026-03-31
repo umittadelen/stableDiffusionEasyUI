@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.7.6
+# EasyUI V2.7.7
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.7.6-blue)
+![Version](https://img.shields.io/badge/version-2.7.7-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,15 +19,19 @@
 ---
 
 
-## What's New in V2.7.6
+## What's New in V2.7.7
 
-- added check to prevent ControlNet preview requests during image generation, which could cause instability.
-- optimized DepthPro function.
+- fixed and added good stuff to terminal extension
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.7.6**
+
+- added check to prevent ControlNet preview requests during image generation, which could cause instability.
+- optimized DepthPro function.
 
 **V2.7.5**
 

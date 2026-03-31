@@ -1,5 +1,5 @@
 EXTENSION_NAME        = "Terminal"
-EXTENSION_VERSION     = "1.0.0"
+EXTENSION_VERSION     = "1.5.0"
 EXTENSION_DESCRIPTION = "Live server output (stdout + stderr) shown in the main UI. Read-only."
 
 import sys, os, threading, collections
@@ -37,16 +37,31 @@ sys.stderr = _Tee(sys.stderr)
 
 # ── SSE helpers ─────────────────────────────────────────────────────────────
 
+import re
+
 def _encode_sse(text):
-    """Encode arbitrary text as a valid SSE message.
-    Each line of the payload becomes a separate 'data:' field."""
-    lines = text.split("\n")
-    # Drop trailing empty string from a trailing newline to avoid blank data lines
-    if lines and lines[-1] == "":
-        lines = lines[:-1]
-    if not lines:
+    """
+    Split by both newline (\n) and carriage return (\r).
+    Each chunk becomes a separate SSE 'data' event.
+    """
+    if not text:
         return ""
-    return "\n".join(f"data:{l}" for l in lines) + "\n\n"
+    
+    # Split by \n or \r (tqdm uses \r)
+    # We use a regex to keep the delimiters if needed, 
+    # but here we just want the chunks of text.
+    lines = re.split(r'[\n\r]', text)
+    
+    # Filter out empty strings to avoid spamming empty events
+    output = []
+    for l in lines:
+        if l.strip():
+            output.append(f"data:{l}")
+            
+    if not output:
+        return ""
+        
+    return "\n".join(output) + "\n\n"
 
 # ── Extension setup ─────────────────────────────────────────────────────────
 

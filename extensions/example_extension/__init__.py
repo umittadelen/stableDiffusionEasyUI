@@ -97,4 +97,3 @@ def _on_after_load_pipeline(pipe, model_name, model_type, **kwargs):
     # Example: access any scheduler config from the loaded pipeline
     if hasattr(pipe, "scheduler"):
         print(f"{Color.text('#FF00EA')}[{EXTENSION_NAME}]{Color.default_text()} {Color.text('#8C00FF')}Scheduler: {Color.default_text()}{type(pipe.scheduler).__name__}")
-
