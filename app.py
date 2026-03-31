@@ -93,6 +93,8 @@ gconfig = {
     "reverse_image_order": False,
     "use_multi_prompt": True,
     "multi_prompt_separator": "§",
+    "batched_generation": False,
+    "max_batch_size": 4,
 
     "enable_nsfw_blur": True,
     "nsfw_threshold": 0.3,
@@ -344,6 +346,16 @@ def load_pipeline(model_name, model_type, generation_type, scheduler_name, clip_
     if gconfig["enable_sequential_cpu_offload"]:
         pipe.enable_sequential_cpu_offload()
 
+    if model_type in gconfig["SDXL"]:
+        if hasattr(pipe, "vae") and pipe.vae is not None:
+            # Check if the VAE implementation actually supports tiling
+            if hasattr(pipe.vae, "use_tiling"):
+                pipe.vae.enable_tiling()
+            
+            # Check if the VAE implementation actually supports slicing
+            if hasattr(pipe.vae, "use_slicing"):
+                pipe.vae.enable_slicing()
+
     gconfig["status"] = "Pipeline Loaded..."
     print("Pipeline Loaded...")
     extension_loader.hooks.fire("after_load_pipeline", pipe=pipe, model_name=model_name, model_type=model_type)
@@ -385,7 +397,6 @@ def latents_to_img(latents, pipe) -> Image:
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
     return Image.fromarray(image_array)
 
-
 # --- Latents saving queue and worker ---
 
 latents_save_queue = queue.Queue()
@@ -425,7 +436,7 @@ def image_to_base64(img, temp_file=f"{gconfig['generated_dir']}temp_base64_image
     os.remove(temp_file)
     return "data:image/png;base64," + img_base64
 
-def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt:str, negative_prompt:str, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count):
+def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt:str, negative_prompt:str, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, prompt_count, batch_size):
     
     prompt = prompt.rstrip(",") + "," + style_prompt.lstrip(",") if prompt and style_prompt else prompt + style_prompt
     
@@ -439,10 +450,10 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
         gconfig["status"] = int(math.floor(step_index / samplingSteps * 100))
         gconfig["progress"] = int(math.floor(((image_count * prompt_count - gconfig["remainingImages"]) + (step_index / samplingSteps)) / (image_count * prompt_count) * 100))
 
-        if gconfig["show_latents"]:
+        if gconfig["show_latents"] and batch_size == 1: 
             image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
-            # Enqueue the latents for saving (non-blocking)
-            save_latents_image(callback_kwargs["latents"][0], pipe, image_path, seed)
+            latent_payload = callback_kwargs["latents"][0].detach().cpu().clone()
+            save_latents_image(latent_payload, pipe, image_path, seed)
 
         if gconfig["generation_stopped"]:
             gconfig["status"] = "Generation Stopped"
@@ -454,14 +465,17 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
     gconfig["status"] = "Generating Image..."
     kwargs = {}
+    image_paths = []
 
     try:
         #! Pass the parameters to the pipeline - (default kwargs for all pipelines)
-        kwargs["generator"] = torch.manual_seed(seed)
+        #seed must be a list like [seed, seed+1, seed+2, ...] if batch_size > 1, otherwise it can be an int
+        kwargs["generator"] = [torch.Generator(device=pipe.device).manual_seed(seed + i) for i in range(batch_size)]
+        
         kwargs["guidance_scale"] = cfg_scale
         kwargs["num_inference_steps"] = samplingSteps
         kwargs["callback_on_step_end"] = progress
-        kwargs["num_images_per_prompt"] = 1
+        kwargs["num_images_per_prompt"] = batch_size
 
         if "controlnet" in generation_type:
             if img_input:
@@ -512,13 +526,6 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
             #! Pass the parameters to the pipeline - (kwargs for txt2img)
             kwargs["width"] = width
             kwargs["height"] = height
-        
-        def pad_embeddings(embeds, target_length):
-            current_length = embeds.shape[1]
-            if current_length < target_length:
-                padding = torch.zeros((embeds.shape[0], target_length - current_length, embeds.shape[2]), dtype=embeds.dtype, device=embeds.device)
-                embeds = torch.cat([embeds, padding], dim=1)
-            return embeds
 
         if not gconfig["enable_sequential_cpu_offload"]:
             if hasattr(pipe, "tokenizer_2"):
@@ -539,9 +546,11 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
         try:
             with torch.no_grad():
-                image = pipe(
-                    **kwargs
-                ).images[0]
+                output = pipe(**kwargs)
+                generated_images = output.images
+                
+                torch.cuda.empty_cache() 
+
         except Exception:
             if gconfig["generation_stopped"]:
                 print("Generation Stopped", flush=True)
@@ -552,40 +561,8 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
             gconfig["generation_stopped"] = True
             gconfig["generating"] = False
             return False
-
-        metadata = PngImagePlugin.PngInfo()
-        metadata.add_text("Prompt", prompt)
-        metadata.add_text("StylePrompt", style_prompt)
-        metadata.add_text("OriginalPrompt", original_prompt)
-        metadata.add_text("NegativePrompt", negative_prompt)
-        metadata.add_text("Width", str(width))
-        metadata.add_text("Height", str(height))
-        metadata.add_text("CFGScale", str(cfg_scale))
-        metadata.add_text("Strength", str(strength) if "img2img" in model_type else "N/A")
-        metadata.add_text("Seed", str(seed))
-        metadata.add_text("SamplingSteps", str(samplingSteps))
-        metadata.add_text("Model", str(model))
-        metadata.add_text("Scheduler", str(scheduler_name))
-        # Use load_image for URLs, Image.open for local files
-        img_for_meta = (
-                (
-                    load_image(img_input) 
-                    if isinstance(img_input, str) and img_input.startswith(("http://","https://"))
-                    else Image.open(img_input)
-                ).convert("RGB") 
-                if img_input
-                else None
-            )
-        metadata.add_text("ImgInput", str(image_to_base64(img_for_meta)) if img_for_meta else "N/A")
-        metadata.add_text("ImgInputMetadata", json.dumps(getattr(img_for_meta, "info", {})) if img_for_meta else "N/A")
-
-        #TODO: Save the image to the temporary directory
-        image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
-        if not gconfig["generation_stopped"]:
-            gconfig["generation_done"] = True
-            image.save(image_path, 'PNG', pnginfo=metadata)
-
-        def _run_nsfw(path, img):
+        
+        def _run_nsfw(path, img, current_seed=seed):
             try:
                 from tools.NSFWClassifier import score as nsfw_score
                 nsfw = nsfw_score(img)
@@ -602,18 +579,80 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
                 meta.add_text("NSFWScoreWD", str(nsfw))
                 reloaded.save(path, "PNG", pnginfo=meta)
                 # update cache entry with score
-                if seed in gconfig["image_cache"]:
-                    gconfig["image_cache"][seed] = [path, nsfw]
+                if current_seed in gconfig["image_cache"]:
+                    gconfig["image_cache"][current_seed] = [path, nsfw]
             except Exception:
                 pass
 
-        if gconfig["enable_nsfw_blur"] and not gconfig["generation_stopped"]:
-            threading.Thread(target=_run_nsfw, args=(image_path, image.copy()), daemon=True).start()
+        img_for_meta = (
+            (load_image(img_input) if isinstance(img_input, str) and img_input.startswith("http") else Image.open(img_input)).convert("RGB") 
+            if img_input else None
+        )
+        base64_input = image_to_base64(img_for_meta) if img_for_meta else "N/A"
+        input_meta_json = json.dumps(getattr(img_for_meta, "info", {})) if img_for_meta else "N/A"
+
+        if batch_size == 1:
+            metadata = PngImagePlugin.PngInfo()
+            metadata.add_text("Prompt", prompt)
+            metadata.add_text("StylePrompt", style_prompt)
+            metadata.add_text("OriginalPrompt", original_prompt)
+            metadata.add_text("NegativePrompt", negative_prompt)
+            metadata.add_text("Width", str(width))
+            metadata.add_text("Height", str(height))
+            metadata.add_text("CFGScale", str(cfg_scale))
+            metadata.add_text("Strength", str(strength) if "img2img" in model_type else "N/A")
+            metadata.add_text("Seed", str(seed))
+            metadata.add_text("SamplingSteps", str(samplingSteps))
+            metadata.add_text("Model", str(model))
+            metadata.add_text("Scheduler", str(scheduler_name))
+
+            metadata.add_text("ImgInput", str(base64_input))
+            metadata.add_text("ImgInputMetadata", input_meta_json)
+
+            #TODO: Save the image to the temporary directory
+            image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
+            if not gconfig["generation_stopped"]:
+                gconfig["generation_done"] = True
+                generated_images[0].save(image_path, 'PNG', pnginfo=metadata)
+                threading.Thread(target=_run_nsfw, args=(image_path, generated_images[0].copy()), daemon=True).start()
+        else:
+            for i, image in enumerate(generated_images):
+                current_seed = seed + i
+
+                metadata = PngImagePlugin.PngInfo()
+                metadata.add_text("Prompt", prompt)
+                metadata.add_text("StylePrompt", style_prompt)
+                metadata.add_text("OriginalPrompt", original_prompt)
+                metadata.add_text("NegativePrompt", negative_prompt)
+                metadata.add_text("Width", str(width))
+                metadata.add_text("Height", str(height))
+                metadata.add_text("CFGScale", str(cfg_scale))
+                metadata.add_text("Strength", str(strength) if "img2img" in model_type else "N/A")
+                metadata.add_text("Seed", str(current_seed))
+                metadata.add_text("SamplingSteps", str(samplingSteps))
+                metadata.add_text("Model", str(model))
+                metadata.add_text("Scheduler", str(scheduler_name))
+
+                metadata.add_text("ImgInput", str(base64_input))
+                metadata.add_text("ImgInputMetadata", input_meta_json)
+                
+                image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{current_seed}.png')
+                if not gconfig["generation_stopped"]:
+                    gconfig["generation_done"] = True
+                    image.save(image_path, 'PNG', pnginfo=metadata)
+
+                    image_paths.append(image_path)
+                    
+                    # Update cache immediately
+                    gconfig["image_cache"][current_seed] = [image_path, None]
+
+                    if gconfig["enable_nsfw_blur"]:
+                        threading.Thread(target=_run_nsfw, args=(image_path, image.copy(), current_seed), daemon=True).start()
 
         gconfig["status"] = "DONE"
         gconfig["progress"] = 0
 
-        return image_path
+        return [image_path] if batch_size == 1 else image_paths
 
     except Exception:
         if gconfig["generation_stopped"]:
@@ -733,36 +772,52 @@ def generate():
                 if prompt == "":
                     raise Exception("No Prompt Provided")
 
-                for i in range(image_count):
+                i = 0
+                while i < image_count:
                     if gconfig["generation_stopped"]:
                         gconfig["progress"] = 0
                         gconfig["status"] = "Generation Stopped"
                         gconfig["generating"] = False
                         gconfig["generation_stopped"] = False
                         raise Exception("Generation Stopped")
+                    
+                    if gconfig["batched_generation"] and image_count > 1:
+                        current_batch_size = min(gconfig["max_batch_size"], image_count - i)
+                    else:
+                        current_batch_size = 1
 
                     #TODO: Update the progress message
                     gconfig["remainingImages"] = (image_count * len(prompt_list)) - (prompt_index * image_count + i)
                     gconfig["status"] = f"Generating {gconfig['remainingImages'] * len(prompt_list)} Images..."
                     gconfig["progress"] = 0
 
-                    #TODO: Generate a new seed for each image
+                    #TODO: Generate the base seed for this batch
                     if custom_seed == gconfig["custom_seed"]:
-                        seed = random.randint(0, 100000000000)
+                        seed = random.randint(0, 10000000000000)
                     else:
                         seed = custom_seed
 
-                    image_path = generateImage(pipe, model_name, prompt, prompts, style_prompt, negative_prompt, seed, width, height, img_input, use_orig_img, strength, model_type, generation_type, image_size, cfg_scale, samplingSteps, scheduler_name, image_count, len(prompt_list))
+                    image_paths = generateImage(
+                        pipe, model_name, prompt, prompts, style_prompt, negative_prompt, 
+                        seed, width, height, img_input, use_orig_img, strength, 
+                        model_type, generation_type, image_size, cfg_scale, 
+                        samplingSteps, scheduler_name, image_count, len(prompt_list), 
+                        current_batch_size
+                    )
 
                     #TODO: Store the generated image path
-                    if image_path:
-                        gconfig["image_cache"][seed] = [image_path, None]
-                        extension_loader.hooks.fire(
-                            "after_generate",
-                            image_path=image_path,
-                            seed=seed,
-                            prompt=prompt,
-                        )
+                    if image_paths:
+                        for idx, path in enumerate(image_paths):
+                            # Calculate specific seed for this image in the batch
+                            img_seed = seed + idx
+                            gconfig["image_cache"][img_seed] = [path, None]
+                            extension_loader.hooks.fire(
+                                "after_generate",
+                                image_path=path,
+                                seed=img_seed,
+                                prompt=prompt,
+                            )
+                    i += current_batch_size
 
             gconfig["status"] = "Generation Complete"
         except Exception as exc:
@@ -1224,6 +1279,14 @@ try:
 except OSError:
     pass  # SIGINT may not be settable in some environments
 
+import socket
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    ip = s.getsockname()[0]
+    s.close()
+    return ip
+
 if __name__ == '__main__':
     _api = AppAPI(
         device=device,
@@ -1240,5 +1303,15 @@ if __name__ == '__main__':
     )
     extension_loader.load_all(app, gconfig, _api)
     extension_loader.hooks.fire("on_app_start", app=app, gconfig=gconfig)
-    app.run(host=gconfig["host"], port=int(gconfig["port"]), debug=False)
-    gconfig["status"] = "Server Started"
+    
+    host, port = gconfig["host"], int(gconfig["port"])
+    if "192.168." in host and host != get_local_ip():
+        print(f"\n\033[93mWarning:\033[0m Configured host \033[91m{host}\033[0m "
+              f"does not match local IP \033[91m{get_local_ip()}\033[0m.\n"
+              f"Please update ./static/json/settings.json to {get_local_ip()}")
+        input("Press \033[1;31mEnter\033[0m to continue with current host or Ctrl+C to exit...")
+        print("\033[93mContinuing with current host...\033[0m")
+        host = get_local_ip()
+        
+    print(f"\n\033[92mServer Started at \033[1;31mhttp://{host}:{port}\033[0m\n")
+    app.run(host=host, port=port, debug=False)

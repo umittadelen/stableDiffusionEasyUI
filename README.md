@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.6.4
+# EasyUI V2.7.5
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.6.4-blue)
+![Version](https://img.shields.io/badge/version-2.7.5-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,16 +19,26 @@
 ---
 
 
-## What's New in V2.6.4
+## What's New in V2.7.5
 
-- **Latents Color Handling Improved** — Latent-to-image color conversion is now more accurate and robust. Latent image saving is now handled in a background thread/queue for better performance and stability.
-- **Consistent Strength Range** — The `strength` parameter for img2img now uses the same 0.0–1.0 range as ControlNet, making parameter behavior consistent across modes.
-- **Image Metadata Fixes** — Improved and fixed image metadata saving, ensuring prompt and generation details are correctly embedded in PNGs.
+- fixed image-wrapper width breaking in some cases
+- added max_batch_size and batched_generation settings
+- vae tiling/slicing now enabled for SDXL models if supported by the implementation, This should *Hopefully* reduce VRAM usage for large batch sizes on VRAM-limited GPUs.
+- latents now deattached, cloned, and moved to CPU before being saved to the generation queue, which should prevent any GPU memory leaks related to latent image saving.
+- seed increases by 1 for each image in the batch when batch size > 1, to ensure different images in the batch instead of identical copies.
+- added if check for if the config host matches the local IP address, and warn the user if it doesn't *since it stops the server immediately*.
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.6.4**
+
+- **Latents Color Handling Improved** — Latent-to-image color conversion is now more accurate and robust. Latent image saving is now handled in a background thread/queue for better performance and stability.
+- **Consistent Strength Range** — The `strength` parameter for img2img now uses the same 0.0–1.0 range as ControlNet, making parameter behavior consistent across modes.
+- **Image Metadata Fixes** — Improved and fixed image metadata saving, ensuring prompt and generation details are correctly embedded in PNGs.
+
 
 **V2.6.2**
 
@@ -121,21 +131,14 @@
 ---
 
 ## Installation
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/umittadelen/stableDiffusionEasyUI.git
+    cd stableDiffusionEasyUI
+    ```
+2. Run `start.exe`. Dependencies are installed automatically on first launch.
 
-```bash
-git clone https://github.com/umittadelen/stableDiffusionEasyUI.git
-cd stableDiffusionEasyUI
-```
-
-**Option A — Embedded Python (recommended):**
-Run `start.exe`. Dependencies are installed automatically on first launch.
-
-**Option B — Direct Run With Embedded Python (run.py):**
-```bash
-python-3.10.6/python.exe run.py
-```
-
-The server starts at `http://localhost:8080` by default. The host and port can be changed from the Settings page.
+3. The server must start at `http://localhost:8080` by default. The host and port can be changed from the Settings page.
 
 ---
 

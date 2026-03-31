@@ -378,6 +378,7 @@ select option:disabled {
    MODEL PREVIEW IMAGE
    ══════════════════════════════════════════ */
 .image-wrapper {
+    width: 100%;
     margin-bottom: 10px;
     position: relative;
 }
@@ -898,10 +899,6 @@ p {
         height: auto;
     }
 
-    .image-wrapper {
-        width: calc(50% - 6px);
-    }
-
     .action-bar {
         justify-content: center;
     }
@@ -925,10 +922,6 @@ p {
 
     #all {
         padding-top: 80px;
-    }
-
-    .image-wrapper {
-        width: 100%;
     }
 
     #images img {

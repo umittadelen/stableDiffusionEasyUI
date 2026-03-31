@@ -79,12 +79,27 @@
                     </select>
                     <div class="setting-label">
                         <label for="sequential-cpu">Enable Sequential CPU Offload:</label>
-                        <span class="info-icon" data-tooltip="More aggressive CPU offloading — moves each layer individually. Very slow but can run on minimal VRAM (&lt;4GB).&#10;&#10;⚠ Disables embedding-based prompt weighting (Compel). Prompts are passed as plain text instead.&#10;&#10;Recommended: False unless VRAM is very limited">ⓘ</span>
+                        <span class="info-icon" data-tooltip="More aggressive CPU offloading — moves each layer individually. Very slow but can run on minimal VRAM (&lt;4GB).&#10;&#10;⚠ Disables Latents Preview.&#10;&#10;Recommended: False unless VRAM is very limited">ⓘ</span>
                     </div>
                     <select id="sequential-cpu" name="sequential-cpu">
                         <option value="True">True</option>
                         <option value="False">False</option>
                     </select>
+                    <!-- "batched_generation": False,
+    "max_batch_size": 4,-->
+                    <div class="setting-label">
+                        <label for="batched-generation">Enable Batched Generation:</label>
+                        <span class="info-icon" data-tooltip="Generates multiple images in parallel batches instead of sequentially.&#10;&#10;Requires more VRAM but can significantly speed up generation when making multiple images.&#10;&#10;Recommended: True for generating 4 or more images at once (if VRAM allows)">ⓘ</span>
+                    </div>
+                    <select id="batched-generation" name="batched-generation">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                    <div class="setting-label">
+                        <label for="max-batch-size">Max Batch Size:</label>
+                        <span class="info-icon" data-tooltip="Maximum number of images to generate in parallel when Batched Generation is enabled.&#10;&#10;Higher = faster generation but more VRAM required.&#10;&#10;Recommended: 4 (adjust based on your GPU's VRAM)">ⓘ</span>
+                    </div>
+                    <input type="number" name="max-batch-size" id="max-batch-size" min="1">
                 </section>
 
                 <!-- Model Section -->

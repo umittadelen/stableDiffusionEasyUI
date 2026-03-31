@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById("xformers").value = data.enable_xformers_memory_efficient_attention ? "True" : "False";
                 document.getElementById("cpu-offload").value = data.enable_model_cpu_offload ? "True" : "False";
                 document.getElementById("sequential-cpu").value = data.enable_sequential_cpu_offload ? "True" : "False";
+                document.getElementById("batched-generation").value = data.batched_generation ? "True" : "False";
+                document.getElementById("max-batch-size").value = data.max_batch_size || "4";
                 document.getElementById("long-clip").value = data.use_long_clip ? "True" : "False";
                 document.getElementById("long-clip-model").value = data.long_clip_model || "zer0int/LongCLIP-GmP-ViT-L-14";
                 document.getElementById("fallback-vae-model").value = data.fallback_vae_model || "clip-vae";
@@ -62,6 +64,8 @@ function saveSettings(event) {
     settings.enable_xformers_memory_efficient_attention = document.getElementById("xformers").value === "True";
     settings.enable_model_cpu_offload = document.getElementById("cpu-offload").value === "True";
     settings.enable_sequential_cpu_offload = document.getElementById("sequential-cpu").value === "True";
+    settings.batched_generation = document.getElementById("batched-generation").value === "True";
+    settings.max_batch_size = parseInt(document.getElementById("max-batch-size").value) || 4;
     settings.use_long_clip = document.getElementById("long-clip").value === "True";
     settings.long_clip_model = document.getElementById("long-clip-model").value;
     settings.fallback_vae_model = document.getElementById("fallback-vae-model").value;
