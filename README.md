@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.7.7
+# EasyUI V2.7.8
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.7.7-blue)
+![Version](https://img.shields.io/badge/version-2.7.8-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,14 +19,19 @@
 ---
 
 
-## What's New in V2.7.7
+## What's New in V2.7.8
 
-- fixed and added good stuff to terminal extension
+- added webview to let the user open the UI in a standalone window instead of the browser
+-icon replaced with .ico format (was .png before)
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.7.7**
+
+- fixed and added good stuff to terminal extension
 
 **V2.7.6**
 

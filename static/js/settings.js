@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         .then(data => {
             if (data) {
                 document.getElementById("theme").value = JSON.stringify(data.theme) || '{"tone_1":"240, 240, 240","tone_2":"240, 218, 218","tone_3":"240, 163, 163"}';
+                document.getElementById("separate-window").value = data.separate_window ? "True" : "False";
                 document.getElementById("attention-slicing").value = data.enable_attention_slicing ? "True" : "False";
                 document.getElementById("xformers").value = data.enable_xformers_memory_efficient_attention ? "True" : "False";
                 document.getElementById("cpu-offload").value = data.enable_model_cpu_offload ? "True" : "False";
@@ -60,6 +61,7 @@ function saveSettings(event) {
     }
 
     // Handle other settings
+    settings.separate_window = document.getElementById("separate-window").value === "True";
     settings.enable_attention_slicing = document.getElementById("attention-slicing").value === "True";
     settings.enable_xformers_memory_efficient_attention = document.getElementById("xformers").value === "True";
     settings.enable_model_cpu_offload = document.getElementById("cpu-offload").value === "True";

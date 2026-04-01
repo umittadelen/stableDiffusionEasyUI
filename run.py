@@ -10,7 +10,7 @@ VENV_PYTHON     = os.path.join(VENV_DIR, "Scripts", "python.exe")
 VENV_PIP        = os.path.join(VENV_DIR, "Scripts", "pip.exe")
 SETUP_MARKER    = os.path.join(SCRIPT_DIR, ".setup_done")
 
-REQUIREMENTS = ["flask", "Pillow", "numpy", "diffusers", "transformers", "compel", "opencv-python", "requests", "accelerate", "matplotlib", "onnxruntime", "pandas"]
+REQUIREMENTS = ["flask", "Pillow", "numpy", "diffusers", "transformers", "compel", "opencv-python", "requests", "accelerate", "matplotlib", "onnxruntime", "pandas", "pywebview"]
 
 def detect_cuda_version():
     try:

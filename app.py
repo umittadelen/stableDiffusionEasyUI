@@ -98,6 +98,7 @@ gconfig = {
 
     "enable_nsfw_blur": True,
     "nsfw_threshold": 0.3,
+    "separate_window": True,
 
     "host":"localhost",
     "port":"8080",
@@ -1289,6 +1290,21 @@ def get_local_ip():
     s.close()
     return ip
 
+def start_server():
+    host, port = gconfig["host"], int(gconfig["port"])
+
+    if "192.168." in host and host != get_local_ip():
+        print(f"\n\033[93mWarning:\033[0m Configured host \033[91m{host}\033[0m "
+              f"does not match local IP \033[91m{get_local_ip()}\033[0m.\n"
+              f"Please update ./static/json/settings.json to {get_local_ip()}")
+        input("Press Enter to continue...")
+        host = get_local_ip()
+
+    print(f"\nServer Started at http://{host}:{port}\n")
+
+    app.run(host=host, port=port, debug=False, use_reloader=False)
+
+
 if __name__ == '__main__':
     _api = AppAPI(
         device=device,
@@ -1303,17 +1319,40 @@ if __name__ == '__main__':
         get_model_configs=get_model_configs,
         controlNets=controlNets,
     )
+
     extension_loader.load_all(app, gconfig, _api)
     extension_loader.hooks.fire("on_app_start", app=app, gconfig=gconfig)
-    
-    host, port = gconfig["host"], int(gconfig["port"])
-    if "192.168." in host and host != get_local_ip():
-        print(f"\n\033[93mWarning:\033[0m Configured host \033[91m{host}\033[0m "
-              f"does not match local IP \033[91m{get_local_ip()}\033[0m.\n"
-              f"Please update ./static/json/settings.json to {get_local_ip()}")
-        input("Press \033[1;31mEnter\033[0m to continue with current host or Ctrl+C to exit...")
-        print("\033[93mContinuing with current host...\033[0m")
-        host = get_local_ip()
-        
-    print(f"\n\033[92mServer Started at \033[38;2;1;1;1m\033[47m\033[1m\033[3m http://{host}:{port} \033[0m\n")
-    app.run(host=host, port=port, debug=False)
+
+    if gconfig.get("separate_window", True):
+        try:
+            import webview
+        except ImportError:
+            print("pywebview is not installed. Falling back to browser-only mode.")
+            try:
+                start_server()
+            except KeyboardInterrupt:
+                _cleanup()
+                sys.exit(0)
+        else:
+            t = threading.Thread(target=start_server, daemon=True)
+            t.start()
+
+            webview.create_window(
+                "EasyUI",
+                f"http://{gconfig['host']}:{gconfig['port']}",
+                width=1000,
+                height=700,
+                maximized=True
+            )
+            webview.start()
+            
+            print("Closing window, performing cleanup...")
+            _cleanup()
+            
+            os._exit(0)
+    else:
+        try:
+            start_server()
+        except KeyboardInterrupt:
+            _cleanup()
+            sys.exit(0)

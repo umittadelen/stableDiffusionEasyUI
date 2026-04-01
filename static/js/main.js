@@ -343,7 +343,7 @@ document.addEventListener('contextmenu', function (event) {
         customConfirm.createConfirm('Quick Actions', [
             { text: 'Clear Images', value: () => clearButtonOnClick(event) },
             { text: 'Stop Generation', value: () => stopButtonOnClick(event) },
-            { text: 'Get Metadata', value: () => window.open(`metadata`) }
+            { text: 'Get Metadata', value: () => window.location.href = `metadata` }
         ], true);
     }
 });
@@ -470,7 +470,7 @@ function toggleStatus(event) {
 }
 
 function openLink(link) {
-    window.open(link.split('?')[0]);
+    window.location.href = link.split('?')[0];
 }
 
 function savePrompt() {
