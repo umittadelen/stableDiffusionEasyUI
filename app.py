@@ -98,7 +98,7 @@ gconfig = {
 
     "enable_nsfw_blur": True,
     "nsfw_threshold": 0.3,
-    "separate_window": True,
+    "separate_window": False,
 
     "host":"localhost",
     "port":"8080",
