@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.7.8
+# EasyUI V2.8.8
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.7.8-blue)
+![Version](https://img.shields.io/badge/version-2.8.8-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,15 +19,32 @@
 ---
 
 
-## What's New in V2.7.8
+## What's New in V2.8.8
 
-- added webview to let the user open the UI in a standalone window instead of the browser
--icon replaced with .ico format (was .png before)
+- **Progress tracking fixes** — Step and total progress calculations were corrected so percentage bars and remaining image counts are accurate during generation.
+- **Better server responsiveness while generating** — Flask now runs in threaded mode, so `/status` and image requests stay responsive while the diffusion pipeline is busy.
+- **Gallery loading stability improvements** — Image refresh logic now avoids unnecessary repeated `src` rewrites, failed loads retry automatically with short backoff, and same-path latent preview frames now refresh during active generation.
+- **Final image replacement fix (same path)** — Gallery now tracks server-reported file modification times and refreshes when the image file changes, so latent previews reliably update to final/original output after metadata writes.
+- **Improved gallery ordering under latents** — `/status` image payload is sorted by file modification time to keep chronological ordering stable; reverse mode now consistently shows newest first.
+- **Generate button UX improvement** — Pressing **Generate** no longer clears the gallery unless `reset_on_new_request` is enabled.
+- **Atomic image write path for generated files** — PNG writes now use a temporary file + replace flow to avoid clients reading half-written files when paths are reused (latents preview, final image save, and NSFW metadata update).
+- **Status polling race hardening** — `/status` now snapshots the image cache before iterating, preventing iteration errors during concurrent updates.
+- **Latents now support batched generation** — Live latent previews are now saved per batch sample (`seed + index`) so batched runs can preview each image instead of only batch size 1.
+
+## Known Notes (V2.8.8)
+
+- If network quality is poor, loading `LongCLIP` from Hugging Face may retry on timeout before continuing.
+- During very fast latent preview updates, weaker systems may still show minor thumbnail refresh churn.
 
 <details>
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.7.8**
+
+- added webview to let the user open the UI in a standalone window instead of the browser
+- icon replaced with .ico format (was .png before)
 
 **V2.7.7**
 

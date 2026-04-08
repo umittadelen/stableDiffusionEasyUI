@@ -4,6 +4,46 @@ let pendingUpdates = false;
 let isCleared = false;
 let gconfig = {};
 
+function buildGalleryImageUrl(path, retry = 0) {
+    const sep = path.includes('?') ? '&' : '?';
+    return `${path}${sep}r=1&v=${Date.now()}&retry=${retry}`;
+}
+
+function setGalleryImageSource(img, path, force = false) {
+    if (!path) return;
+    if (!force && img.dataset.imgPath === path && img.dataset.loaded === 'true') {
+        return;
+    }
+
+    img.dataset.imgPath = path;
+    img.dataset.retryCount = '0';
+    img.dataset.loaded = 'false';
+    img.src = buildGalleryImageUrl(path, 0);
+}
+
+function attachGalleryImageHandlers(img) {
+    img.addEventListener('load', () => {
+        img.dataset.loaded = 'true';
+        img.dataset.retryCount = '0';
+    });
+
+    img.addEventListener('error', () => {
+        const path = img.dataset.imgPath;
+        if (!path) return;
+
+        const retries = Number(img.dataset.retryCount || '0');
+        if (retries >= 4) return;
+
+        img.dataset.retryCount = String(retries + 1);
+        img.dataset.loaded = 'false';
+
+        const delay = 200 * (retries + 1);
+        setTimeout(() => {
+            img.src = buildGalleryImageUrl(path, retries + 1);
+        }, delay);
+    });
+}
+
 function applyNsfwState(wrapper, score) {
     const threshold = parseFloat(gconfig.nsfw_threshold) || 0.5;
     const shouldBlur = gconfig.enable_nsfw_blur && score >= threshold;
@@ -133,10 +173,12 @@ fetch("/scan_model_configs")
 function submitButtonOnClick(event) {
     event.preventDefault();
 
-    // Clear existing images for new generation
+    // Keep gallery stable between runs unless explicit reset is enabled.
     isGeneratingNewImages = true;
-    existingImages.clear();
-    document.getElementById('images').innerHTML = '';
+    if (gconfig.reset_on_new_request) {
+        existingImages.clear();
+        document.getElementById('images').innerHTML = '';
+    }
     const formElement = document.getElementById('generateForm');
     saveFormData();
 
@@ -352,6 +394,7 @@ function updateProgressBars(data, error = "") {
     const progressText = document.getElementById('progress');
     const dynamicProgressBar = document.getElementById('dynamic-progress-bar');
     const alldynamicProgressBar = document.getElementById('all-dynamic-progress-bar');
+    const cfg = data.gconfig || {};
 
     const setProgress = (element, value) => element.style.width = `calc(${value}%)`;
     const resetProgress = () => {
@@ -365,25 +408,25 @@ function updateProgressBars(data, error = "") {
         return;
     }
 
-    if (Number.isInteger(data.gconfig.status)) {
-        setProgress(dynamicProgressBar, data.gconfig.status);
-        progressText.textContent = `Progress: ${data.gconfig.status}% Remaining: ${data.gconfig.remainingImages}`;
+    if (Number.isInteger(cfg.status)) {
+        setProgress(dynamicProgressBar, cfg.status);
+        progressText.textContent = `Progress: ${cfg.status}% Remaining: ${cfg.remainingImages ?? 0}`;
     }
-    else if (data.gconfig.status.endsWith("Generation Stopped\n")) {
+    else if (typeof cfg.status === 'string' && cfg.status.includes("Generation Stopped")) {
         resetProgress();
         progressText.textContent = 'Generation Stopped';
     }
-    else if (typeof data.gconfig.status === 'string') {
+    else if (typeof cfg.status === 'string') {
         resetProgress();
-        progressText.textContent = data.gconfig.status.slice(-200);
+        progressText.textContent = cfg.status.trim() === '' ? 'Status: idle' : cfg.status.slice(-200);
     }
-    else if (data.gconfig.status.trim() === "") {
+    else {
         resetProgress();
         progressText.textContent = 'Status: idle';
     }
 
-    if (Number.isInteger(data.gconfig.progress)) {
-        setProgress(alldynamicProgressBar, data.gconfig.progress);
+    if (Number.isInteger(cfg.progress)) {
+        setProgress(alldynamicProgressBar, cfg.progress);
     } else {
         setProgress(alldynamicProgressBar, 0);
     }
@@ -405,36 +448,54 @@ async function getTokenCount(inElementID, outElementId) {
 
 function processImageUpdates(images, reverse) {
     const imagesDiv = document.getElementById('images');
+    const shouldLiveRefreshSamePath = Boolean(gconfig.show_latents && gconfig.generating);
 
-    if (reverse) {
-        images.reverse()
-        var editedImagesList = images;
-    } else {
-        var editedImagesList = images;
-    }
+    const editedImagesList = Array.isArray(images) ? images : [];
 
-    editedImagesList.forEach((imgData, index) => {
+    editedImagesList.forEach((imgData) => {
         const key = imgData.seed;
+        if (!imgData || !imgData.img) {
+            return;
+        }
 
+        let wrapper;
         if (existingImages.has(key)) {
-            const existingWrapper = existingImages.get(key);
-            const existingImg = existingWrapper.querySelector('img');
-            if (existingImg.src !== imgData.img) {
-                existingImg.src = imgData.img+"?r=1";
+            wrapper = existingImages.get(key);
+            const existingImg = wrapper.querySelector('img');
+            const incomingMtime = String(imgData.mtime ?? '');
+            const currentMtime = existingImg.dataset.imgMtime || '';
+            if (existingImg.dataset.imgPath !== imgData.img) {
+                setGalleryImageSource(existingImg, imgData.img, true);
+                existingImg.dataset.imgMtime = incomingMtime;
+            } else if (incomingMtime && incomingMtime !== currentMtime) {
+                // Same path, newer file content (final image / metadata rewrite) -> refresh.
+                setGalleryImageSource(existingImg, imgData.img, true);
+                existingImg.dataset.imgMtime = incomingMtime;
+            } else if (shouldLiveRefreshSamePath) {
+                // Latent previews often reuse the same output path; refresh it with light throttling.
+                const now = Date.now();
+                const lastRefresh = Number(existingImg.dataset.lastRefresh || '0');
+                if (now - lastRefresh >= 200) {
+                    existingImg.dataset.lastRefresh = String(now);
+                    setGalleryImageSource(existingImg, imgData.img, true);
+                }
             }
             // Apply nsfw score if it just became available
-            if (gconfig.enable_nsfw_blur && imgData.nsfw_score !== null && imgData.nsfw_score !== undefined && !existingWrapper.dataset.nsfwScore) {
-                existingWrapper.dataset.nsfwScore = imgData.nsfw_score;
-                applyNsfwState(existingWrapper, imgData.nsfw_score);
+            if (gconfig.enable_nsfw_blur && imgData.nsfw_score !== null && imgData.nsfw_score !== undefined && !wrapper.dataset.nsfwScore) {
+                wrapper.dataset.nsfwScore = imgData.nsfw_score;
+                applyNsfwState(wrapper, imgData.nsfw_score);
             }
         } else {
-            const wrapper = document.createElement('div');
+            wrapper = document.createElement('div');
             wrapper.className = 'image-wrapper';
 
             const img = document.createElement('img');
-            img.src = imgData.img+"?r=1";
             img.loading = "lazy";
+            img.decoding = 'async';
             img.onclick = () => openLink("image/" + imgData.img.split('/').pop());
+            attachGalleryImageHandlers(img);
+            setGalleryImageSource(img, imgData.img, true);
+            img.dataset.imgMtime = String(imgData.mtime ?? '');
 
             wrapper.appendChild(img);
 
@@ -445,19 +506,13 @@ function processImageUpdates(images, reverse) {
                 }
                 // else: score not ready yet, reapplyNsfwBlur will handle it on next poll
             }
+            existingImages.set(key, wrapper);
 
-            if (reverse && index === 0) {
+            // Only place truly new wrappers once; avoid reordering existing nodes every poll.
+            if (reverse) {
                 imagesDiv.insertBefore(wrapper, imagesDiv.firstChild);
             } else {
                 imagesDiv.appendChild(wrapper);
-            }
-            existingImages.set(key, wrapper);
-        }
-
-        if ((reverse && index === 0) || (!reverse && index === images.length - 1)) {
-            const imgToUpdate = existingImages.get(key)?.querySelector('img');
-            if (imgToUpdate) {
-                imgToUpdate.src = `${imgData.img}?timestamp=${Date.now()}&r=1`; // Force refresh
             }
         }
     });

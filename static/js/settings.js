@@ -36,8 +36,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById("reset-on-new-request").value = data.reset_on_new_request ? "True" : "False";
                 document.getElementById("reverse-image-order").value = data.reverse_image_order ? "True" : "False";
                 document.getElementById("use-multi-prompt").value = data.use_multi_prompt ? "True" : "False";
-                document.getElementById("multi-prompt-separator").value = JSON.stringify(data.multi_prompt_separator).slice(1, -1) || "§";                document.getElementById("enable-nsfw-blur").value = data.enable_nsfw_blur ? "True" : "False";
-                document.getElementById("nsfw-threshold").value = data.nsfw_threshold || "0.5";                document.getElementById("host").value = data.host || "localhost";
+                document.getElementById("multi-prompt-separator").value = JSON.stringify(data.multi_prompt_separator).slice(1, -1) || "§";
+                document.getElementById("enable-nsfw-blur").value = data.enable_nsfw_blur ? "True" : "False";
+                document.getElementById("nsfw-threshold").value = data.nsfw_threshold || "0.5";
+                document.getElementById("host").value = data.host || "localhost";
                 document.getElementById("port").value = data.port || "8080";
             }
         })

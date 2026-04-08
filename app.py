@@ -412,7 +412,7 @@ def latents_saver_worker():
             latents = latents.detach().cpu()
             image = latents_to_img(latents, pipe)
             if not gconfig["generation_stopped"] and not gconfig["generation_done"]:
-                image.save(image_path, 'PNG')
+                save_png_atomic(image, image_path)
                 # Do NOT run NSFW check for latents; store None for nsfw_score
                 gconfig["image_cache"][seed] = [image_path, None]
         except Exception:
@@ -428,6 +428,18 @@ if not hasattr(globals(), "_latents_saver_thread"):
 def save_latents_image(latents, pipe, image_path, seed):
     # Just enqueue the save request, don't block
     latents_save_queue.put((latents, pipe, image_path, seed))
+
+def save_png_atomic(image: Image.Image, image_path: str, pnginfo=None):
+    temp_path = f"{image_path}.tmp.{threading.get_ident()}"
+    try:
+        image.save(temp_path, "PNG", pnginfo=pnginfo)
+        os.replace(temp_path, image_path)
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 def image_to_base64(img, temp_file=f"{gconfig['generated_dir']}temp_base64_image.png"):
     img = img.convert("RGB")
@@ -447,14 +459,31 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
     if not isDirectory(gconfig["generated_dir"]):
         os.makedirs(gconfig["generated_dir"])
 
-    def progress(pipe, step_index, timestep, callback_kwargs):
-        gconfig["status"] = int(math.floor(step_index / samplingSteps * 100))
-        gconfig["progress"] = int(math.floor(((image_count * prompt_count - gconfig["remainingImages"]) + (step_index / samplingSteps)) / (image_count * prompt_count) * 100))
+    total_images = max(1, image_count * prompt_count)
 
-        if gconfig["show_latents"] and batch_size == 1: 
-            image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
-            latent_payload = callback_kwargs["latents"][0].detach().cpu().clone()
-            save_latents_image(latent_payload, pipe, image_path, seed)
+    def progress(pipe, step_index, timestep, callback_kwargs):
+        step_ratio = min(1.0, (step_index + 1) / max(1, samplingSteps))
+        completed_before_batch = max(0, total_images - gconfig["remainingImages"])
+
+        gconfig["status"] = int(math.floor(step_ratio * 100))
+        gconfig["progress"] = int(math.floor(min(
+            100,
+            ((completed_before_batch + step_ratio * batch_size) / total_images) * 100
+        )))
+
+        if gconfig["show_latents"]:
+            latents_batch = callback_kwargs.get("latents")
+            if latents_batch is not None:
+                if batch_size == 1:
+                    image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
+                    latent_payload = latents_batch[0].detach().cpu().clone()
+                    save_latents_image(latent_payload, pipe, image_path, seed)
+                else:
+                    for batch_index in range(min(batch_size, latents_batch.shape[0])):
+                        current_seed = seed + batch_index
+                        image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{current_seed}.png')
+                        latent_payload = latents_batch[batch_index].detach().cpu().clone()
+                        save_latents_image(latent_payload, pipe, image_path, current_seed)
 
         if gconfig["generation_stopped"]:
             gconfig["status"] = "Generation Stopped"
@@ -578,7 +607,7 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
                         except Exception:
                             pass
                 meta.add_text("NSFWScoreWD", str(nsfw))
-                reloaded.save(path, "PNG", pnginfo=meta)
+                save_png_atomic(reloaded, path, pnginfo=meta)
                 # update cache entry with score
                 if current_seed in gconfig["image_cache"]:
                     gconfig["image_cache"][current_seed] = [path, nsfw]
@@ -614,7 +643,7 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
             image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{seed}.png')
             if not gconfig["generation_stopped"]:
                 gconfig["generation_done"] = True
-                generated_images[0].save(image_path, 'PNG', pnginfo=metadata)
+                save_png_atomic(generated_images[0], image_path, pnginfo=metadata)
                 threading.Thread(target=_run_nsfw, args=(image_path, generated_images[0].copy()), daemon=True).start()
         else:
             for i, image in enumerate(generated_images):
@@ -640,7 +669,7 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
                 image_path = os.path.join(gconfig["generated_dir"], f'image{current_time}_{current_seed}.png')
                 if not gconfig["generation_stopped"]:
                     gconfig["generation_done"] = True
-                    image.save(image_path, 'PNG', pnginfo=metadata)
+                    save_png_atomic(image, image_path, pnginfo=metadata)
 
                     image_paths.append(image_path)
                     
@@ -789,7 +818,7 @@ def generate():
 
                     #TODO: Update the progress message
                     gconfig["remainingImages"] = (image_count * len(prompt_list)) - (prompt_index * image_count + i)
-                    gconfig["status"] = f"Generating {gconfig['remainingImages'] * len(prompt_list)} Images..."
+                    gconfig["status"] = f"Generating {gconfig['remainingImages']} Images..."
                     gconfig["progress"] = 0
 
                     #TODO: Generate the base seed for this batch
@@ -931,14 +960,35 @@ def controlnet():
 def status():
     # Convert the generated images to a list to send to the client
     images = []
-    for seed, path in gconfig["image_cache"].items():
+
+    def _image_sort_key(item):
+        img = item.get('img')
+        if not img:
+            return (-1.0, str(item.get('seed', '')))
+        try:
+            return (os.path.getmtime(img), str(item.get('seed', '')))
+        except Exception:
+            return (-1.0, str(item.get('seed', '')))
+
+    for seed, path in list(gconfig["image_cache"].items()):
         img_path = path[0] if len(path) > 0 else None
         nsfw_score = path[1] if len(path) > 1 else None
+        mtime = -1.0
+        if img_path:
+            try:
+                mtime = os.path.getmtime(img_path)
+            except Exception:
+                mtime = -1.0
         images.append({
             'img': img_path,
             'seed': seed,
-            'nsfw_score': nsfw_score
+            'nsfw_score': nsfw_score,
+            'mtime': mtime,
         })
+
+    # Keep backend order stable (oldest -> newest). Frontend reverse mode will render newest first.
+    images.sort(key=_image_sort_key)
+
     return jsonify(
         images=images,
         gconfig=gconfig
@@ -1302,7 +1352,7 @@ def start_server():
 
     print(f"\nServer Started at http://{host}:{port}\n")
 
-    app.run(host=host, port=port, debug=False, use_reloader=False)
+    app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
 
 
 if __name__ == '__main__':
