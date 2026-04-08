@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById("default-clip-model").value = data.default_clip_model || "clip-vit-l-14-clip";
                 document.getElementById("fallback-tokenizer-model").value = data.fallback_tokenizer_model || "openai/clip-vit-base-patch16";
                 document.getElementById("image-size").value = data.preview_size || "512";
-                document.getElementById("update-interwal").value = data.update_interwal || "2500";
+                document.getElementById("update-interval").value = data.update_interval || "2500";
                 document.getElementById("update-page-in-background").value = data.update_page_in_background ? "True" : "False";
                 document.getElementById("show-model-preview").value = data.show_model_preview ? "True" : "False";
                 document.getElementById("show-latents").value = data.show_latents ? "True" : "False";
@@ -76,7 +76,7 @@ function saveSettings(event) {
     settings.default_clip_model = document.getElementById("default-clip-model").value;
     settings.fallback_tokenizer_model = document.getElementById("fallback-tokenizer-model").value;
     settings.preview_size = document.getElementById("image-size").value;
-    settings.update_interwal = document.getElementById("update-interwal").value;
+    settings.update_interval = document.getElementById("update-interval").value;
     settings.update_page_in_background = document.getElementById("update-page-in-background").value === "True";
     settings.show_model_preview = document.getElementById("show-model-preview").value === "True";
     settings.show_latents = document.getElementById("show-latents").value === "True";

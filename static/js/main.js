@@ -254,9 +254,23 @@ async function resetFormButtonOnClick(event) {
     }
 };
 
-let updatepageIntervalId = setInterval(updatePage, 2500);
+function resolveUpdateIntervalMs(config) {
+    const raw = config?.update_interval ?? 2500;
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+        return 2500;
+    }
+    return parsed;
+}
+
+let currentUpdateInterval = 2500;
+let updatepageIntervalId = setInterval(updatePage, currentUpdateInterval);
 
 function changeInterval(newInterval) {
+    if (!Number.isFinite(newInterval) || newInterval < 1 || newInterval === currentUpdateInterval) {
+        return;
+    }
+    currentUpdateInterval = newInterval;
     clearInterval(updatepageIntervalId); // Stop the current interval
     updatepageIntervalId = setInterval(updatePage, newInterval); // Start a new interval
 }
@@ -283,7 +297,7 @@ function updatePage() {
 
             updateModelPreview();
 
-            changeInterval(parseInt(gconfig.update_interwal))
+            changeInterval(resolveUpdateIntervalMs(gconfig))
 
             if (data.images.length < existingImages.size) {
                 existingImages.clear();
