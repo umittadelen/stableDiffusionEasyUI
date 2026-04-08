@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.8.8
+# EasyUI V2.8.9
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.8.8-blue)
+![Version](https://img.shields.io/badge/version-2.8.9-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,17 +19,10 @@
 ---
 
 
-## What's New in V2.8.8
+## What's New in V2.8.9
 
-- **Progress tracking fixes** — Step and total progress calculations were corrected so percentage bars and remaining image counts are accurate during generation.
-- **Better server responsiveness while generating** — Flask now runs in threaded mode, so `/status` and image requests stay responsive while the diffusion pipeline is busy.
-- **Gallery loading stability improvements** — Image refresh logic now avoids unnecessary repeated `src` rewrites, failed loads retry automatically with short backoff, and same-path latent preview frames now refresh during active generation.
-- **Final image replacement fix (same path)** — Gallery now tracks server-reported file modification times and refreshes when the image file changes, so latent previews reliably update to final/original output after metadata writes.
-- **Improved gallery ordering under latents** — `/status` image payload is sorted by file modification time to keep chronological ordering stable; reverse mode now consistently shows newest first.
-- **Generate button UX improvement** — Pressing **Generate** no longer clears the gallery unless `reset_on_new_request` is enabled.
-- **Atomic image write path for generated files** — PNG writes now use a temporary file + replace flow to avoid clients reading half-written files when paths are reused (latents preview, final image save, and NSFW metadata update).
-- **Status polling race hardening** — `/status` now snapshots the image cache before iterating, preventing iteration errors during concurrent updates.
-- **Latents now support batched generation** — Live latent previews are now saved per batch sample (`seed + index`) so batched runs can preview each image instead of only batch size 1.
+- **Forced first-model flow** — If no installed models are found, the app redirects `/` to the Model Manager and requires downloading at least one model from Civitai before the main generation page can be used.
+- **Generation safety guard** — `/generate` now returns a clear error when no models are installed, preventing invalid generation attempts.
 
 ## Known Notes (V2.8.8)
 
@@ -40,6 +33,18 @@
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.8.8**
+
+- **Progress tracking fixes** — Step and total progress calculations were corrected so percentage bars and remaining image counts are accurate during generation.
+- **Better server responsiveness while generating** — Flask now runs in threaded mode, so `/status` and image requests stay responsive while the diffusion pipeline is busy.
+- **Gallery loading stability improvements** — Image refresh logic now avoids unnecessary repeated `src` rewrites, failed loads retry automatically with short backoff, and same-path latent preview frames now refresh during active generation.
+- **Final image replacement fix (same path)** — Gallery now tracks server-reported file modification times and refreshes when the image file changes, so latent previews reliably update to final/original output after metadata writes.
+- **Improved gallery ordering under latents** — `/status` image payload is sorted by file modification time to keep chronological ordering stable; reverse mode now consistently shows newest first.
+- **Generate button UX improvement** — Pressing **Generate** no longer clears the gallery unless `reset_on_new_request` is enabled.
+- **Atomic image write path for generated files** — PNG writes now use a temporary file + replace flow to avoid clients reading half-written files when paths are reused (latents preview, final image save, and NSFW metadata update).
+- **Status polling race hardening** — `/status` now snapshots the image cache before iterating, preventing iteration errors during concurrent updates.
+- **Latents now support batched generation** — Live latent previews are now saved per batch sample (`seed + index`) so batched runs can preview each image instead of only batch size 1.
 
 **V2.7.8**
 
@@ -179,6 +184,8 @@
 
 Open the **Model Editor** and enter a CivitAI model ID and version ID (found in the `AIR` field on the model page, e.g. `AIR: 123456 @ 654321`).
 
+If your model list is empty, EasyUI will automatically redirect you to the Model Manager and block generation until at least one model is downloaded.
+
 ### 2. Configure Parameters
 
 | Parameter | Description |
@@ -198,7 +205,7 @@ Open the **Model Editor** and enter a CivitAI model ID and version ID (found in 
 
 ### 3. Generate
 
-Click **Generate Images** to start. Use **Stop Generation** to cancel at any time.
+Click **Generate** to start. Use **Stop** to cancel at any time.
 
 ---
 

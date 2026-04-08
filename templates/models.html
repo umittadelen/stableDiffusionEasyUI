@@ -22,6 +22,14 @@
     <div id="all">
         <h1>Model Manager</h1>
 
+        {% if required_download %}
+        <section class="form-section glass-panel" style="border:1px solid rgba(255,120,120,0.5);">
+            <h2 class="section-title">Model Required</h2>
+            <p>No installed models were found. You must download at least one model from Civitai before using the main page.</p>
+        </section>
+        <div id="form-separator"></div>
+        {% endif %}
+
         <!-- Download Model Section -->
         <section class="form-section glass-panel">
             <h2 class="section-title">Download Model from Civitai</h2>

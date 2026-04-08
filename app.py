@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for
 import torch, random, os, math, time, threading, sys, subprocess, glob, gc, logging, cv2, json, requests, atexit, signal
 from PIL import PngImagePlugin, Image
 import numpy as np
@@ -697,6 +697,9 @@ def generateImage(pipe, model:str, prompt:str, original_prompt:str, style_prompt
 
 @app.route('/generate', methods=['POST'])
 def generate():
+    if not has_installed_models():
+        return jsonify(status='No models installed. Download a model from Civitai first.'), 400
+
     #TODO: Check if generation is already in progress
     if gconfig["generating"] or gconfig["downloading"]:
         return jsonify(status='Image generation already in progress'), 400
@@ -1063,6 +1066,8 @@ def restart_app():
 
 @app.route('/')
 def index():
+    if not has_installed_models():
+        return redirect(url_for('models', required='1'))
     return render_template('index.html')
 
 def get_clip_token_info(text):
@@ -1125,7 +1130,8 @@ def clip_token():
 
 @app.route('/models')
 def models():
-    return render_template('models.html')
+    required_download = request.args.get('required', '0') == '1'
+    return render_template('models.html', required_download=required_download)
 
 @app.route('/settings')
 def settings():
@@ -1223,6 +1229,11 @@ def get_model_configs():
                     return {"error": f"Invalid JSON in {json_path}"}
 
     return merged_config  # Returns a list of JSON data
+
+def has_installed_models():
+    """Return True when at least one model config is available."""
+    model_configs = get_model_configs()
+    return isinstance(model_configs, list) and len(model_configs) > 0
 
 @app.route('/scan_model_configs')
 def scan_for_model_configs():
