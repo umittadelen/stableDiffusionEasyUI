@@ -9,6 +9,7 @@ VENV_DIR        = os.path.join(SCRIPT_DIR, "venv")
 VENV_PYTHON     = os.path.join(VENV_DIR, "Scripts", "python.exe")
 VENV_PIP        = os.path.join(VENV_DIR, "Scripts", "pip.exe")
 SETUP_MARKER    = os.path.join(SCRIPT_DIR, ".setup_done")
+RESTART_EXIT_CODE = 75
 
 REQUIREMENTS = ["flask", "Pillow", "numpy", "diffusers", "transformers", "compel", "opencv-python", "requests", "accelerate", "matplotlib", "onnxruntime", "pandas", "pywebview"]
 
@@ -89,10 +90,22 @@ def main():
                 print(f"[extensions] Installing requirements for '{name}'...")
                 subprocess.run([VENV_PIP, "install", "-r", req])
 
-    print("[run] Launching app.py ...")
-    try:
-        sys.exit(subprocess.run([VENV_PYTHON, os.path.join(SCRIPT_DIR, "app.py")]).returncode)
-    except KeyboardInterrupt: sys.exit(0)
+    app_cmd = [VENV_PYTHON, os.path.join(SCRIPT_DIR, "app.py")]
+    app_env = os.environ.copy()
+    app_env["EASYUI_SUPERVISED"] = "1"
+
+    while True:
+        print("[run] Launching app.py ...")
+        try:
+            rc = subprocess.run(app_cmd, env=app_env).returncode
+        except KeyboardInterrupt:
+            sys.exit(0)
+
+        if rc == RESTART_EXIT_CODE:
+            print("[run] Restart requested by app. Relaunching...")
+            continue
+
+        sys.exit(rc)
 
 if __name__ == "__main__":
     main()

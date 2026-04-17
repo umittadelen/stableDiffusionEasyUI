@@ -2,14 +2,14 @@
 
 <img src="preview.jpeg" alt="EasyUI Preview" width="600"/>
 
-# EasyUI V2.8.9
+# EasyUI V2.9.5
 </div>
 > A free, open-source local text-to-image generation UI — run advanced AI models on your own hardware with full parameter control.
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/umittadelen/stableDiffusionEasyUI/blob/main/LICENSE.txt)
-![Version](https://img.shields.io/badge/version-2.8.9-blue)
+![Version](https://img.shields.io/badge/version-2.9.5-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 </div>
 
@@ -19,10 +19,12 @@
 ---
 
 
-## What's New in V2.8.9
+## What's New in V2.9.5
 
-- **Forced first-model flow** — If no installed models are found, the app redirects `/` to the Model Manager and requires downloading at least one model from Civitai before the main generation page can be used.
-- **Generation safety guard** — `/generate` now returns a clear error when no models are installed, preventing invalid generation attempts.
+- **More reliable Civitai downloads** — current redirect handling now resolves signed download URLs correctly and reports failures more clearly.
+- **Better installed-model detection** — model configs are now discovered more reliably from sidecar JSON files, including older or BOM-encoded entries.
+- **Cleaner model names in the UI** — dropdowns and model cards now prefer `display_name`, so models show their actual readable names instead of truncated version labels.
+- **Safer background actions** — model downloads and restart flow are more resilient during normal app use.
 
 ## Known Notes (V2.8.8)
 
@@ -33,6 +35,11 @@
 <summary>
 
 ## Previous Versions</summary>
+
+**V2.8.9**
+
+- **Forced first-model flow** — If no installed models are found, the app redirects `/` to the Model Manager and requires downloading at least one model from Civitai before the main generation page can be used.
+- **Generation safety guard** — `/generate` now returns a clear error when no models are installed, preventing invalid generation attempts.
 
 **V2.8.8**
 
@@ -174,7 +181,7 @@
     ```
 2. Run `start.exe`. Dependencies are installed automatically on first launch.
 
-3. The server must start at `http://localhost:8080` by default. The host and port can be changed from the Settings page.
+3. The server starts at `http://localhost:8080` by default. The host and port can be changed from the Settings page.
 
 ---
 

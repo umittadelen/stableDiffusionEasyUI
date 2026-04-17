@@ -39,6 +39,8 @@ app = Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
+RESTART_EXIT_CODE = 75
+
 def isDirectory(a):
     return os.path.isdir(a)
 
@@ -900,27 +902,32 @@ def save_prompt():
 
 @app.route('/addmodel', methods=['POST'])
 def addmodel():
-    #TODO: Download the model
     model_id = int(request.form['model_id']) if request.form['model_id'].isdigit() else 0
     version_id = int(request.form['version_id']) if request.form['version_id'].isdigit() else 0
 
     if model_id == 0 or version_id == 0:
-        return jsonify(status='Invalid Model ID or Version ID')
-
-    gconfig["status"] = "Downloading Model..."
+        return jsonify(status='Invalid Model ID or Version ID'), 400
 
     if gconfig["generating"]:
         return jsonify(status='Image generation in progress. Please wait'), 400
 
-    #! civitai.com
-    try:
-        gconfig["downloading"] = True
-        downloadModelFromCivitai(model_id, version_id)
-        gconfig["downloading"] = False
-        return jsonify(status='Model Downloaded')
-    except:
-        gconfig["downloading"] = False
-        return jsonify(status='Error Downloading Model')
+    if gconfig.get("downloading"):
+        return jsonify(status='A model download is already in progress.'), 409
+
+    gconfig["status"] = "Downloading Model..."
+
+    def _download_in_background():
+        try:
+            gconfig["downloading"] = True
+            downloadModelFromCivitai(model_id, version_id)
+        except Exception as e:
+            gconfig["status"] = f"Error Downloading Model: {e}"
+            print(traceback.format_exc())
+        finally:
+            gconfig["downloading"] = False
+
+    threading.Thread(target=_download_in_background, daemon=True).start()
+    return jsonify(status='Model download started')
 
 @app.route('/serve_controlnet', methods=['POST'])
 def serve_controlnet():
@@ -1061,8 +1068,21 @@ def restart_app():
         gc.collect()
         torch.cuda.empty_cache()
     gconfig["progress"] = 0
-    subprocess.Popen([sys.executable] + sys.argv)
-    os._exit(0)
+
+    def _restart_worker():
+        time.sleep(0.2)
+        # If launched by run.py, exit with a restart code so supervisor relaunches us.
+        if os.environ.get("EASYUI_SUPERVISED") == "1":
+            _cleanup()
+            os._exit(RESTART_EXIT_CODE)
+
+        # Fallback for direct launches: spawn a replacement process ourselves.
+        subprocess.Popen([sys.executable] + sys.argv, cwd=os.getcwd())
+        _cleanup()
+        os._exit(0)
+
+    threading.Thread(target=_restart_worker, daemon=True).start()
+    return jsonify(status='Restarting server...')
 
 @app.route('/')
 def index():
@@ -1208,27 +1228,62 @@ def nsfw_check(filename):
     return jsonify(score=nsfw)
 
 def get_model_configs():
-    """Scans the models directory and returns a list of model configurations."""
-    models_path = "./models/"
+    """Scans the models directory and returns a merged list of model configurations."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    models_path = os.path.join(base_dir, "models")
+    cache_path = os.path.join(base_dir, "static", "json", "models.json")
     merged_config = []
+    seen = set()
 
-    if not os.path.exists(models_path):
+    def _normalize_item(item):
+        normalized = dict(item)
+        display_name = normalized.get("display_name") or normalized.get("_display_name")
+        if not display_name:
+            raw_name = normalized.get("name", "")
+            display_name = os.path.splitext(raw_name)[0] if raw_name else "Unnamed Model"
+        normalized["display_name"] = display_name
+        return normalized
+
+    def _append_item(item):
+        if not isinstance(item, dict):
+            return
+        item = _normalize_item(item)
+        key = item.get("path") or item.get("name") or item.get("model_version_id")
+        if not key or key in seen:
+            return
+        seen.add(key)
+        merged_config.append(item)
+
+    def _load_json_file(json_path):
+        for encoding in ("utf-8-sig", "utf-8"):
+            try:
+                with open(json_path, "r", encoding=encoding) as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                continue
+        raise json.JSONDecodeError("Invalid JSON", json_path, 0)
+
+    if os.path.isdir(models_path):
+        for json_path in sorted(glob.glob(os.path.join(models_path, "*", "*.json"))):
+            try:
+                _append_item(_load_json_file(json_path))
+            except Exception as e:
+                print(f"Skipping invalid model config {json_path}: {e}")
+
+    if os.path.isfile(cache_path):
+        try:
+            cached = _load_json_file(cache_path)
+            if isinstance(cached, list):
+                for item in cached:
+                    _append_item(item)
+        except Exception as e:
+            print(f"Skipping cached models list {cache_path}: {e}")
+
+    if not merged_config and not os.path.isdir(models_path):
         return {"error": "Model directory not found"}
 
-    for model_name in os.listdir(models_path):
-        model_dir = os.path.join(models_path, model_name)
-        if os.path.isdir(model_dir):
-            json_files = [f for f in os.listdir(model_dir) if f.endswith(".json")]
-            if json_files:
-                json_path = os.path.join(model_dir, json_files[0])  # Pick the first JSON file
-                try:
-                    with open(json_path, "r", encoding="utf-8") as f:
-                        config_data = json.load(f)
-                    merged_config.append(config_data)
-                except json.JSONDecodeError:
-                    return {"error": f"Invalid JSON in {json_path}"}
-
-    return merged_config  # Returns a list of JSON data
+    merged_config.sort(key=lambda item: (item.get("display_name") or item.get("name") or "").lower())
+    return merged_config
 
 def has_installed_models():
     """Return True when at least one model config is available."""
@@ -1346,22 +1401,26 @@ except OSError:
 import socket
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
-    ip = s.getsockname()[0]
-    s.close()
-    return ip
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
 
-def start_server():
-    host, port = gconfig["host"], int(gconfig["port"])
+def start_server(host=None, port=None):
+    host = host or gconfig["host"]
+    port = int(port or gconfig["port"])
 
-    if "192.168." in host and host != get_local_ip():
-        print(f"\n\033[93mWarning:\033[0m Configured host \033[91m{host}\033[0m "
-              f"does not match local IP \033[91m{get_local_ip()}\033[0m.\n"
-              f"Please update ./static/json/settings.json to {get_local_ip()}")
-        input("Press Enter to continue...")
-        host = get_local_ip()
+    # if "192.168." in host and host != get_local_ip():
+    #     print(f"\n\033[93mWarning:\033[0m Configured host \033[91m{host}\033[0m "
+    #           f"does not match local IP \033[91m{get_local_ip()}\033[0m.\n"
+    #           f"Please update ./static/json/settings.json to {get_local_ip()}")
+    #     input("Press Enter to continue...")
+    #     host = get_local_ip()
 
-    print(f"\nServer Started at http://{host}:{port}\n")
+    # print(f"\nServer Started at http://{host}:{port}\n")
 
     app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
 
@@ -1383,6 +1442,19 @@ if __name__ == '__main__':
 
     extension_loader.load_all(app, gconfig, _api)
     extension_loader.hooks.fire("on_app_start", app=app, gconfig=gconfig)
+    
+    host, port = gconfig["host"], int(gconfig["port"])
+
+    # Check for 192.168.x.x is valid
+    if "192.168." in host and host != get_local_ip():
+        print(f"\n\033[93mWarning:\033[0m Configured host \033[91m{host}\033[0m "
+              f"does not match local IP \033[91m{get_local_ip()}\033[0m.\n"
+              f"Please update ./static/json/settings.json to {get_local_ip()}")
+        input("Press Enter to continue...")
+        host = get_local_ip()
+
+    print(f"\nServer Started at http://{host}:{port}\n")
+    # -----------------------------
 
     if gconfig.get("separate_window", True):
         try:
@@ -1390,17 +1462,17 @@ if __name__ == '__main__':
         except ImportError:
             print("pywebview is not installed. Falling back to browser-only mode.")
             try:
-                start_server()
+                start_server(host, port)
             except KeyboardInterrupt:
                 _cleanup()
                 sys.exit(0)
         else:
-            t = threading.Thread(target=start_server, daemon=True)
+            t = threading.Thread(target=start_server, args=(host, port), daemon=True)
             t.start()
 
             webview.create_window(
                 "EasyUI",
-                f"http://{gconfig['host']}:{gconfig['port']}",
+                f"http://{host}:{port}",
                 width=1000,
                 height=700,
                 maximized=True
@@ -1413,7 +1485,7 @@ if __name__ == '__main__':
             os._exit(0)
     else:
         try:
-            start_server()
+            start_server(host, port)
         except KeyboardInterrupt:
             _cleanup()
             sys.exit(0)

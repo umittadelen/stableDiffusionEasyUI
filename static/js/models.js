@@ -31,7 +31,8 @@ function renderModelList(models) {
         } else {
             imgHtml = `<div class="model-card-img-wrap"></div>`;
         }
-        const textHtml = `<div class="model-card-text"><strong>${model.name || model.id || 'Unnamed Model'}</strong><br><span style="font-size:0.9em;opacity:0.7;">${model.type || ''}</span></div>`;
+        const displayLabel = model.display_name || model._display_name || model.name || model.id || 'Unnamed Model';
+        const textHtml = `<div class="model-card-text"><strong>${displayLabel}</strong><br><span style="font-size:0.9em;opacity:0.7;">${model.type || ''}</span></div>`;
         card.innerHTML = imgHtml + textHtml;
         card.onclick = () => showModelDetails(model, idx);
         listDiv.appendChild(card);
@@ -124,15 +125,23 @@ function submitModel(event) {
     statusDiv.textContent = 'Starting model download...';
     localStorage.setItem('modelDownloadStatus', 'Starting model download...');
     const formData = new FormData(event.target);
+
     fetch('/addmodel', {
         method: 'POST',
         body: formData
     })
-    .then((response) => response.json())
+    .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.status || 'Failed to start model download');
+        }
+        return data;
+    })
     .then((data) => {
         loadModels();
-        statusDiv.textContent = 'Model download started! (Check progress in the console or logs)';
-        localStorage.setItem('modelDownloadStatus', 'Model download started! (Check progress in the console or logs)');
+        const message = data.status || 'Model download started';
+        statusDiv.textContent = message;
+        localStorage.setItem('modelDownloadStatus', message);
         setTimeout(() => {
             statusDiv.textContent = '';
             localStorage.removeItem('modelDownloadStatus');

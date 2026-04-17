@@ -113,8 +113,10 @@ function populateModels(data, select) {
         option.value = item.path;
         option.dataset.cfg = item.cfg || 7;
         option.dataset.type = item.type || "SDXL";
-        option.dataset.src = item.images.url;
-        option.textContent = item.name.split(".")[0];
+        option.dataset.src = item.images?.url || '';
+
+        const label = item.display_name || item._display_name || item.name || item.id || 'Unnamed Model';
+        option.textContent = label.replace(/\.(safetensors|ckpt|pt|bin)$/i, '');
 
         if (item.disabled) {
             option.disabled = true;

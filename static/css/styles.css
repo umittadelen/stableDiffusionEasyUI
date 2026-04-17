@@ -302,6 +302,10 @@ select {
     resize: vertical;
 }
 
+select {
+    color-scheme: light;
+}
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -351,10 +355,15 @@ input[type="file"] {
     border-radius: var(--border-radius-sm);
 }
 
-/* Select disabled option */
+/* Keep native dropdown items readable regardless of theme */
+select option,
+select optgroup {
+    color: #000;
+    background: #fff;
+}
+
 select option:disabled {
-    color: var(--dark-text-color);
-    opacity: 0.4;
+    color: #666;
 }
 
 /* ── Param grid for compact two-column params ── */
